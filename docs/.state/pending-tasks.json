@@ -1,17 +1,3 @@
 {
-  "tasks": [
-    {
-      "id": "breakdown-FEAT-04",
-      "agent": "product-spec",
-      "input": {
-        "mode": "feature-breakdown",
-        "feature_id": "FEAT-04",
-        "feature": "loan-tracking-&-returns",
-        "feature_name": "Loan Tracking & Returns",
-        "prd_file": "docs/01-prd/prd-v1.0.md"
-      },
-      "dependencies": [],
-      "priority": 4
-    }
-  ]
+  "tasks": []
 }
