@@ -1,4 +1,6 @@
 name: Agentic Orchestrator
+permissions:
+  contents: write
 
 on:
   push:
