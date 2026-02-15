@@ -1,16 +1,17 @@
 {
   "tasks": [
     {
-      "id": "questions-FEAT-04-iter-1",
-      "agent": "tech-lead",
+      "id": "refine-FEAT-04-iter-1",
+      "agent": "product-spec",
       "input": {
         "feature_id": "FEAT-04",
         "feature": "loan-tracking-&-returns",
         "iteration": 1,
-        "feature_doc": "docs/02-features/FEAT-04-loan-tracking-&-returns.md"
+        "feature_doc": "docs/02-features/FEAT-04-loan-tracking-&-returns.md",
+        "questions_file": "docs/03-refinement/FEAT-04-loan-tracking-&-returns/questions-iter-1.md"
       },
       "dependencies": [],
-      "priority": 4
+      "priority": 1
     }
   ]
 }
