@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
 """
-Find all currently runnable tasks based on filesystem state.
-Parallel-safe: uses sentinel files for completion tracking, no shared mutable queue.
-Returns a JSON array of all tasks that can run right now.
+Generic pipeline interpreter — reads pipeline.yml and returns all currently runnable tasks.
+Parallel-safe: uses sentinel files for completion tracking.
 """
 import json
-import sys
 import re
+import sys
 from pathlib import Path
 
-MAX_REFINEMENT_ITERATIONS = 5
+import yaml
 
 
 # ---------------------------------------------------------------------------
@@ -17,12 +16,10 @@ MAX_REFINEMENT_ITERATIONS = 5
 # ---------------------------------------------------------------------------
 
 def is_complete(task_id):
-    """Check if a task has been completed via sentinel file."""
     return Path(f'docs/.state/completed/{task_id}.done').exists()
 
 
 def get_latest_feature_docs():
-    """Return the most up-to-date doc path for each feature."""
     features_dir = Path('docs/02-features')
     refinement_dir = Path('docs/03-refinement')
     docs = []
@@ -37,14 +34,35 @@ def get_latest_feature_docs():
     return docs
 
 
-def _parse_feature_registry():
+def resolve_value(value, **kwargs):
+    """Resolve a single value — handles special tokens and {pattern} substitution."""
+    if value == '{{latest_feature_docs}}':
+        return get_latest_feature_docs()
+    if isinstance(value, str):
+        return value.format(**kwargs)
+    return value
+
+
+def resolve_input(input_dict, **kwargs):
+    """Resolve all values in an input dict, skipping optional files that don't exist yet."""
+    optional_keys = {'appsec_doc', 'qa_doc', 'foundation_spec'}
+    resolved = {}
+    for key, value in input_dict.items():
+        resolved_value = resolve_value(value, **kwargs)
+        if key in optional_keys and isinstance(resolved_value, str):
+            if not Path(resolved_value).exists():
+                continue
+        resolved[key] = resolved_value
+    return resolved
+
+
+def parse_feature_registry():
     """Load or derive the feature registry from the PRD."""
     registry_path = Path('docs/.state/feature-registry.json')
     if registry_path.exists():
         with open(registry_path) as f:
             return json.load(f)
 
-    # Derive from PRD
     prd_path = Path('docs/01-prd/prd-v1.0.md')
     if not prd_path.exists():
         return {}
@@ -63,74 +81,66 @@ def _parse_feature_registry():
         registry_path.parent.mkdir(parents=True, exist_ok=True)
         with open(registry_path, 'w') as f:
             json.dump(registry, f, indent=2)
-        print(f"📋 Created feature registry with {len(registry)} features", file=sys.stderr)
 
     return registry
 
 
+def build_task(task_id, agent, output_path, task_input):
+    return {'id': task_id, 'agent': agent, 'output_path': output_path, 'input': task_input}
+
+
 # ---------------------------------------------------------------------------
-# Stage checkers — return:
-#   []    = nothing to do at this stage (pass through to next stage)
-#   [...]  = list of runnable tasks
-#   None  = hard gate, stop and wait for human
+# Stage processors — return [] (pass), [tasks] (work to do), or None (gate)
 # ---------------------------------------------------------------------------
 
-def check_stage_prd_creation():
-    """Stage 1: Create PRD if it doesn't exist."""
-    if Path('docs/01-prd/prd-v1.0.md').exists():
+def process_single(stage):
+    task_id = stage.get('task_id', stage['id'])
+    output = stage['output']
+    if is_complete(task_id) or Path(output).exists():
         return []
-    if is_complete('prd-initial'):
+    task_input = resolve_input(stage.get('input', {}))
+    return [build_task(task_id, stage['agent'], output, task_input)]
+
+
+def process_gate(stage):
+    if Path(stage['sentinel']).exists():
         return []
-    return [{
-        'id': 'prd-initial',
-        'agent': 'product-spec',
-        'input': {'user_idea_file': 'docs/00-user-idea.md', 'iteration': 0}
-    }]
+    print(f"⏸  Gate: {stage['message']}", file=sys.stderr)
+    return None
 
 
-def check_stage_prd_approval():
-    """Stage 2: Gate — wait for human to approve PRD."""
-    prd_file = Path('docs/01-prd/prd-v1.0.md')
-    approval_file = Path('docs/01-prd/.approved')
-    if prd_file.exists() and not approval_file.exists():
-        return None  # hard gate
-    return []
-
-
-def check_stage_feature_breakdown():
-    """Stage 3: Break each feature out of the PRD into its own doc."""
-    if not Path('docs/01-prd/.approved').exists():
-        return []
-
-    registry = _parse_feature_registry()
+def process_per_feature(stage):
+    registry = parse_feature_registry()
     if not registry:
         return []
-
     tasks = []
     for feature_id, feature in registry.items():
-        task_id = f'breakdown-{feature_id}'
-        output_file = Path(f'docs/02-features/{feature_id}-{feature["slug"]}.md')
-        if not is_complete(task_id) and not output_file.exists():
-            tasks.append({
-                'id': task_id,
-                'agent': 'product-spec',
-                'input': {
-                    'mode': 'feature-breakdown',
-                    'feature_id': feature_id,
-                    'feature': feature['slug'],
-                    'feature_name': feature['name'],
-                    'prd_file': 'docs/01-prd/prd-v1.0.md'
-                }
-            })
+        kwargs = {'feature_id': feature_id, 'feature_slug': feature['slug'], 'feature_name': feature['name']}
+        task_id = stage['task_id'].format(**kwargs)
+        output = stage['output'].format(**kwargs)
+        if is_complete(task_id) or Path(output).exists():
+            continue
+        task_input = resolve_input(stage.get('input', {}), **kwargs)
+        task_input['feature_id'] = feature_id
+        task_input['feature'] = feature['slug']
+        tasks.append(build_task(task_id, stage['agent'], output, task_input))
     return tasks
 
 
-def check_stage_feature_refinement():
-    """Stage 4: Tech-lead/product-spec iteration loop per feature.
+def process_parallel_group(stage):
+    tasks = []
+    for subtask in stage['tasks']:
+        task_id = subtask['task_id']
+        output = subtask['output']
+        if is_complete(task_id) or Path(output).exists():
+            continue
+        task_input = resolve_input(subtask.get('input', {}))
+        tasks.append(build_task(task_id, subtask['agent'], output, task_input))
+    return tasks
 
-    Features iterate independently — all features that have a runnable next
-    step are returned so they can run in parallel.
-    """
+
+def process_refinement_loop(stage):
+    """Tech-lead / product-spec iteration loop, one chain per feature, all features in parallel."""
     features_dir = Path('docs/02-features')
     if not features_dir.exists():
         return []
@@ -139,14 +149,17 @@ def check_stage_feature_refinement():
     if not feature_files:
         return []
 
-    # All breakdowns must be done before refinement starts
-    registry = _parse_feature_registry()
+    # All feature breakdowns must be complete before refinement starts
+    registry = parse_feature_registry()
     for feature_id, feature in registry.items():
-        task_id = f'breakdown-{feature_id}'
-        output_file = Path(f'docs/02-features/{feature_id}-{feature["slug"]}.md')
-        if not is_complete(task_id) and not output_file.exists():
-            return []  # Still breaking down
+        output = f'docs/02-features/{feature_id}-{feature["slug"]}.md'
+        if not is_complete(f'breakdown-{feature_id}') and not Path(output).exists():
+            return []
 
+    max_iter = stage.get('max_iterations', 5)
+    ready_signal = stage.get('ready_signal', 'READY FOR IMPLEMENTATION')
+    reviewer = stage['reviewer']
+    responder = stage['responder']
     refinement_dir = Path('docs/03-refinement')
     tasks = []
 
@@ -156,76 +169,59 @@ def check_stage_feature_refinement():
         if not match:
             continue
         feature_id, feature_slug = match.group(1), match.group(2)
-        feature_dir = refinement_dir / stem
 
-        for iteration in range(1, MAX_REFINEMENT_ITERATIONS + 1):
-            questions_file = feature_dir / f'questions-iter-{iteration}.md'
-            updated_file = feature_dir / f'updated-v1.{iteration}.md'
-            questions_task_id = f'questions-{feature_id}-iter-{iteration}'
-            refine_task_id = f'refine-{feature_id}-iter-{iteration}'
+        for iteration in range(1, max_iter + 1):
+            kwargs = {'feature_id': feature_id, 'feature_slug': feature_slug, 'iteration': iteration}
+            questions_task_id = reviewer['task_id'].format(**kwargs)
+            questions_output = reviewer['output'].format(**kwargs)
+            refine_task_id = responder['task_id'].format(**kwargs)
+            refine_output = responder['output'].format(**kwargs)
+            questions_file = Path(questions_output)
+            updated_file = Path(refine_output)
 
-            # --- Tech-lead step ---
+            # Tech-lead step
             if not questions_file.exists():
-                # Prerequisite: iter 1 is always ok; iter N needs previous product-spec response
-                prev_updated = feature_dir / f'updated-v1.{iteration - 1}.md'
+                prev_updated = Path(responder['output'].format(
+                    feature_id=feature_id, feature_slug=feature_slug, iteration=iteration - 1
+                ))
                 prereq_met = (iteration == 1) or prev_updated.exists()
                 if prereq_met and not is_complete(questions_task_id):
                     input_doc = str(prev_updated) if iteration > 1 else str(feature_file)
-                    tasks.append({
-                        'id': questions_task_id,
-                        'agent': 'tech-lead',
-                        'input': {
-                            'feature_id': feature_id,
-                            'feature': feature_slug,
-                            'iteration': iteration,
-                            'feature_doc': input_doc
-                        }
-                    })
-                break  # Can't advance chain until questions are written
+                    task_input = {'feature_id': feature_id, 'feature': feature_slug,
+                                  'iteration': iteration, 'feature_doc': input_doc}
+                    tasks.append(build_task(questions_task_id, reviewer['agent'], questions_output, task_input))
+                break
 
-            # Questions file exists — check if feature is ready
             with open(questions_file) as f:
-                questions_content = f.read()
-            if 'READY FOR IMPLEMENTATION' in questions_content:
-                break  # Feature done, nothing more to do
+                if ready_signal in f.read():
+                    break
 
-            # --- Product-spec step ---
+            # Product-spec step
             if not updated_file.exists():
                 if not is_complete(refine_task_id):
-                    tasks.append({
-                        'id': refine_task_id,
-                        'agent': 'product-spec',
-                        'input': {
-                            'feature_id': feature_id,
-                            'feature': feature_slug,
-                            'iteration': iteration,
-                            'feature_doc': str(feature_file),
-                            'questions_file': str(questions_file)
-                        }
-                    })
-                break  # Wait for response before next iteration
-
-            # updated_file exists — advance to next iteration
+                    task_input = {'feature_id': feature_id, 'feature': feature_slug,
+                                  'iteration': iteration, 'feature_doc': str(feature_file),
+                                  'questions_file': str(questions_file)}
+                    tasks.append(build_task(refine_task_id, responder['agent'], refine_output, task_input))
+                break
 
     return tasks
 
 
-def check_stage_specs_approval():
-    """Stage 5: Gate — all features refined, wait for human approval."""
+def process_specs_gate(stage, pipeline):
+    """Gate that only activates once all features are READY FOR IMPLEMENTATION."""
+    if Path(stage['sentinel']).exists():
+        return []
+
     refinement_dir = Path('docs/03-refinement')
-    approval_file = Path('docs/03-refinement/.approved')
-
-    if approval_file.exists():
-        return []  # Already approved
-
     if not refinement_dir.exists():
         return []
 
-    # If there are still refinement tasks to run, don't gate yet
-    if check_stage_feature_refinement():
+    # If refinement loop still has work, don't gate yet
+    refinement_stage = next((s for s in pipeline if s['type'] == 'refinement-loop'), None)
+    if refinement_stage and process_refinement_loop(refinement_stage):
         return []
 
-    # Check all features are marked READY
     features_dir = Path('docs/02-features')
     if not features_dir.exists():
         return []
@@ -234,69 +230,22 @@ def check_stage_specs_approval():
     if not expected:
         return []
 
+    ready_signal = refinement_stage.get('ready_signal', 'READY FOR IMPLEMENTATION') if refinement_stage else 'READY FOR IMPLEMENTATION'
     ready = set()
     for feature_dir in refinement_dir.iterdir():
         if not feature_dir.is_dir():
             continue
         for qf in sorted(feature_dir.glob('questions-*.md'), reverse=True):
             with open(qf) as f:
-                if 'READY FOR IMPLEMENTATION' in f.read():
+                if ready_signal in f.read():
                     ready.add(feature_dir.name)
                     break
 
     if ready >= expected:
-        return None  # Hard gate — all ready, waiting for human
+        print(f"⏸  Gate: {stage['message']}", file=sys.stderr)
+        return None
 
     return []
-
-
-def check_stage_foundation_analysis():
-    """Stage 6: Run foundation analysis after specs are approved."""
-    if not Path('docs/03-refinement/.approved').exists():
-        return []
-    if is_complete('foundation-analysis') or Path('docs/04-foundation/foundation-analysis.md').exists():
-        return []
-    return [{
-        'id': 'foundation-analysis',
-        'agent': 'foundation-architect',
-        'input': {'feature_docs': get_latest_feature_docs()}
-    }]
-
-
-def check_stage_engineering_specs():
-    """Stage 7: Generate engineering spec for each feature in parallel."""
-    if not Path('docs/04-foundation/foundation-analysis.md').exists():
-        return []
-
-    registry = _parse_feature_registry()
-    if not registry:
-        return []
-
-    feature_docs = get_latest_feature_docs()
-    foundation_doc = 'docs/04-foundation/foundation-analysis.md'
-    tasks = []
-
-    for feature_id, feature in registry.items():
-        task_id = f'spec-{feature_id}'
-        spec_file = Path(f'docs/05-specs/{feature_id}-{feature["slug"]}-spec.md')
-        if is_complete(task_id) or spec_file.exists():
-            continue
-        feature_doc = next(
-            (d for d in feature_docs if feature_id in d),
-            f'docs/02-features/{feature_id}-{feature["slug"]}.md'
-        )
-        tasks.append({
-            'id': task_id,
-            'agent': 'engineering-spec',
-            'input': {
-                'feature_id': feature_id,
-                'feature': feature['slug'],
-                'feature_doc': feature_doc,
-                'foundation_doc': foundation_doc
-            }
-        })
-
-    return tasks
 
 
 # ---------------------------------------------------------------------------
@@ -304,34 +253,47 @@ def check_stage_engineering_specs():
 # ---------------------------------------------------------------------------
 
 def find_next_tasks():
-    stages = [
-        ('prd-creation',        check_stage_prd_creation),
-        ('prd-approval-gate',   check_stage_prd_approval),
-        ('feature-breakdown',   check_stage_feature_breakdown),
-        ('feature-refinement',  check_stage_feature_refinement),
-        ('specs-approval-gate', check_stage_specs_approval),
-        ('foundation-analysis', check_stage_foundation_analysis),
-        ('engineering-specs',   check_stage_engineering_specs),
-    ]
+    pipeline_path = Path('pipeline.yml')
+    if not pipeline_path.exists():
+        print("has_tasks=false")
+        print("# pipeline.yml not found", file=sys.stderr)
+        return
 
-    for stage_name, stage_fn in stages:
-        result = stage_fn()
+    with open(pipeline_path) as f:
+        config = yaml.safe_load(f)
+
+    pipeline = config['pipeline']
+
+    for stage in pipeline:
+        stage_type = stage['type']
+        stage_id = stage['id']
+
+        if stage_type == 'gate':
+            result = process_specs_gate(stage, pipeline) if stage_id == 'specs-approval' else process_gate(stage)
+        elif stage_type == 'single':
+            result = process_single(stage)
+        elif stage_type == 'per-feature':
+            result = process_per_feature(stage)
+        elif stage_type == 'parallel-group':
+            result = process_parallel_group(stage)
+        elif stage_type == 'refinement-loop':
+            result = process_refinement_loop(stage)
+        else:
+            print(f"# Unknown stage type: {stage_type}", file=sys.stderr)
+            result = []
 
         if result is None:
-            # Hard gate — stop everything, waiting for human
             print("has_tasks=false")
-            print(f"# Waiting at gate: {stage_name}", file=sys.stderr)
             return
 
         if result:
-            # Found runnable tasks — output for matrix
             print("has_tasks=true")
             print(f"tasks={json.dumps(result)}")
-            print(f"# Stage: {stage_name} — {len(result)} task(s): {[t['id'] for t in result]}", file=sys.stderr)
+            print(f"# Stage: {stage_id} — {len(result)} task(s): {[t['id'] for t in result]}", file=sys.stderr)
             return
 
     print("has_tasks=false")
-    print("# All stages complete or waiting for input", file=sys.stderr)
+    print("# All stages complete", file=sys.stderr)
 
 
 if __name__ == '__main__':

@@ -77,8 +77,15 @@ def call_agent(agent, prompt):
     return response.content[0].text
 
 
-def get_output_path(agent, task_input):
-    """Determine where to save agent output."""
+def get_output_path(agent, task_input, task_output_path=None):
+    """Determine where to save agent output.
+    Prefers output_path from pipeline.yml task JSON.
+    Falls back to legacy hardcoded logic for backwards compatibility.
+    """
+    if task_output_path:
+        return task_output_path
+
+    # Legacy fallback
     if agent == 'product-spec':
         mode = task_input.get('mode', 'initial')
         if mode == 'feature-breakdown':
@@ -92,16 +99,13 @@ def get_output_path(agent, task_input):
             feature_slug = task_input.get('feature', 'unknown')
             iteration = task_input.get('iteration')
             return f'docs/03-refinement/{feature_id}-{feature_slug}/updated-v1.{iteration}.md'
-
     elif agent == 'tech-lead':
         feature_id = task_input.get('feature_id', 'FEAT-XX')
         feature_slug = task_input.get('feature', 'unknown')
         iteration = task_input.get('iteration', 1)
         return f'docs/03-refinement/{feature_id}-{feature_slug}/questions-iter-{iteration}.md'
-
     elif agent == 'foundation-architect':
         return 'docs/04-foundation/foundation-analysis.md'
-
     elif agent == 'engineering-spec':
         feature_id = task_input.get('feature_id', 'FEAT-XX')
         feature_slug = task_input.get('feature', 'unknown')
@@ -137,7 +141,7 @@ def run_judge(agent, output_path):
     return {'result': 'PASS', 'score': 95, 'issues': []}
 
 
-def run_task(task_id, agent, task_input):
+def run_task(task_id, agent, task_input, output_path=None):
     """Main task execution."""
     print(f"\n{'='*60}")
     print(f"Running task: {task_id}")
@@ -146,7 +150,7 @@ def run_task(task_id, agent, task_input):
 
     prompt = load_agent_prompt(agent, task_input)
     output = call_agent(agent, prompt)
-    output_path = get_output_path(agent, task_input)
+    output_path = get_output_path(agent, task_input, task_output_path=output_path)
     save_output(output_path, output)
 
     judge_result = run_judge(agent, output_path)
@@ -181,4 +185,4 @@ if __name__ == '__main__':
         run_task(args.task_id, args.agent, task_input)
     else:
         task = json.loads(task_json)
-        run_task(task['id'], task['agent'], task.get('input', {}))
+        run_task(task['id'], task['agent'], task.get('input', {}), task.get('output_path'))

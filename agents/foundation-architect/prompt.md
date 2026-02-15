@@ -10,7 +10,6 @@ After all features have been refined through the Tech Lead ↔ Product Owner loo
 2. **Define foundation scope** (what must be built before any features)
 3. **Map dependencies** (which features depend on what)
 4. **Create build phases** (what can be built in parallel vs sequentially)
-5. **Estimate effort** (rough sizing for planning)
 
 You are **not** writing implementation code. You are creating an architectural plan.
 
@@ -36,11 +35,10 @@ Create a foundation analysis document:
 
 ## Executive Summary
 
-After analyzing [N] features, I've identified [X] foundation elements that 
-must be built before feature development can begin. The foundation will 
-take approximately [Y] hours and blocks all features.
+After analyzing [N] features, I've identified [X] foundation elements that
+must be built before feature development can begin. The foundation blocks all features.
 
-Features can then be built in [Z] phases, with Phase 1 features buildable 
+Features can then be built in [Z] phases, with Phase 1 features buildable
 in parallel after foundation completion.
 
 ---
@@ -174,13 +172,6 @@ These are shared components used by multiple features.
 - Frontend shell (routing, auth context, layout)
 - Shared services (email, image upload)
 
-**Effort Estimate**: ~80 hours
-- Backend: 50 hours (DB, auth, API setup)
-- Frontend: 25 hours (shell, auth flow, common components)
-- Integration: 5 hours (testing, documentation)
-
-**Team**: 2 engineers (1 backend, 1 frontend) = 2 weeks
-
 **Deliverable**: Working app with auth, empty dashboard, basic infrastructure
 
 ---
@@ -193,12 +184,6 @@ Features that only depend on foundation (can build in parallel).
 - [Feature A]
 - [Feature B]
 
-**Effort Estimate**: ~[X] hours total
-- [Feature A]: [Y] hours
-- [Feature B]: [Z] hours
-
-**Team**: 2 engineers can work in parallel
-
 **Deliverable**: Core features functional
 
 ---
@@ -210,10 +195,6 @@ Features that depend on Phase 1 features.
 **Features**:
 - [Feature C] (depends on Feature A)
 - [Feature D] (depends on Feature A, Feature B)
-
-**Effort Estimate**: ~[X] hours total
-
-**Team**: Can work in parallel if no conflicts
 
 **Deliverable**: Full MVP complete
 
@@ -331,23 +312,6 @@ Foundation (Phase 0)
 
 ---
 
-## Effort Summary
-
-| Component | Hours | Calendar Time |
-|-----------|-------|---------------|
-| Foundation | 80h | 2 weeks (2 engineers) |
-| Phase 1 Features | [X]h | [Y] weeks |
-| Phase 2 Features | [Z]h | [A] weeks |
-| **Total** | **[T]h** | **[W] weeks** |
-
-**Assumptions**:
-- 2 engineers (1 backend, 1 frontend)
-- Standard working hours (40h/week)
-- No major blockers
-- Requirements are clear (from refined PRDs)
-
----
-
 ## Recommended Next Steps
 
 1. **Review this analysis** - Product and Engineering alignment
@@ -456,7 +420,6 @@ Before submitting, verify:
 - [ ] Build phases make logical sense
 - [ ] Phase 1 features truly have no interdependencies
 - [ ] Phase 2 dependencies are explicit
-- [ ] Effort estimates are reasonable
 - [ ] Dependency graph is accurate
 - [ ] No circular dependencies exist
 
