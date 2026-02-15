@@ -11,18 +11,6 @@
       },
       "dependencies": [],
       "priority": 4
-    },
-    {
-      "id": "questions-FEAT-03-iter-2",
-      "agent": "tech-lead",
-      "input": {
-        "feature_id": "FEAT-03",
-        "feature": "borrowing-request-system",
-        "iteration": 2,
-        "feature_doc": "docs/03-refinement/FEAT-03-borrowing-request-system/updated-v1.1.md"
-      },
-      "dependencies": [],
-      "priority": 1
     }
   ]
 }

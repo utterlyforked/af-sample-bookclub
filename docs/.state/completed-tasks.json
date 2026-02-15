@@ -173,6 +173,19 @@
       "dependencies": [],
       "priority": 1,
       "completed_at": "2026-02-15T17:34:22.380593"
+    },
+    {
+      "id": "questions-FEAT-03-iter-2",
+      "agent": "tech-lead",
+      "input": {
+        "feature_id": "FEAT-03",
+        "feature": "borrowing-request-system",
+        "iteration": 2,
+        "feature_doc": "docs/03-refinement/FEAT-03-borrowing-request-system/updated-v1.1.md"
+      },
+      "dependencies": [],
+      "priority": 1,
+      "completed_at": "2026-02-15T17:34:55.071812"
     }
   ]
 }
