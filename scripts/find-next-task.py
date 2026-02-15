@@ -37,56 +37,40 @@ def check_stage_prd_approval():
     
     return None
 
-def check_stage_feature_extraction():
-    """Stage 3: PRD approved but features not extracted?"""
+def check_stage_feature_breakdown():
+    """Stage 3: PRD approved but features not broken down into separate docs?"""
     approval_file = Path('docs/01-prd/.approved')
     
     if not approval_file.exists():
         return None  # Not at this stage yet
     
-    # Check if features have been extracted (tech-lead tasks exist or completed)
-    features_extracted = False
+    # Check if features have been broken down (feature docs exist)
+    features_dir = Path('docs/02-features')
     
-    # Check pending tasks for tech-lead questions
-    if Path('docs/.state/pending-tasks.json').exists():
-        with open('docs/.state/pending-tasks.json') as f:
-            pending = json.load(f)
-            if any('questions-' in t['id'] for t in pending.get('tasks', [])):
-                features_extracted = True
+    if features_dir.exists() and list(features_dir.glob('*.md')):
+        # Features already broken down
+        return None
     
-    # Check completed tasks for tech-lead questions
-    if Path('docs/.state/completed-tasks.json').exists():
-        with open('docs/.state/completed-tasks.json') as f:
-            completed = json.load(f)
-            if any('questions-' in t['id'] for t in completed.get('tasks', [])):
-                features_extracted = True
+    # Need to break down features
+    print("📋 Breaking down PRD into individual feature documents...", file=sys.stderr)
+    create_feature_breakdown_tasks()
     
-    # Check if refinement directory exists with content
-    refinement_dir = Path('docs/02-refinement')
-    if refinement_dir.exists() and list(refinement_dir.iterdir()):
-        features_extracted = True
-    
-    if not features_extracted:
-        # Extract features NOW (not as a task)
-        print("📋 Extracting features from approved PRD...", file=sys.stderr)
-        extract_and_create_tasks()
-        
-        # Now return the first tech-lead task
-        with open('docs/.state/pending-tasks.json') as f:
-            pending = json.load(f)
-            if pending.get('tasks'):
-                first_task = pending['tasks'][0]
-                return {
-                    'has_task': True,
-                    'task_id': first_task['id'],
-                    'agent': first_task['agent'],
-                    'stage': 'feature-refinement'
-                }
+    # Return the first feature breakdown task
+    with open('docs/.state/pending-tasks.json') as f:
+        pending = json.load(f)
+        if pending.get('tasks'):
+            first_task = pending['tasks'][0]
+            return {
+                'has_task': True,
+                'task_id': first_task['id'],
+                'agent': first_task['agent'],
+                'stage': 'feature-breakdown'
+            }
     
     return None
 
-def extract_and_create_tasks():
-    """Extract features from PRD and create tech-lead tasks."""
+def create_feature_breakdown_tasks():
+    """Extract features from PRD and create product-spec breakdown tasks."""
     import re
     
     prd_path = 'docs/01-prd/prd-v1.0.md'
@@ -106,16 +90,17 @@ def extract_and_create_tasks():
     
     print(f"📋 Found {len(features)} features", file=sys.stderr)
     
-    # Create tech-lead tasks
+    # Create product-spec breakdown tasks (one per feature)
     tasks = []
     for i, feature in enumerate(features, 1):
         feature_slug = feature.lower().replace(' ', '-').replace(':', '')
         tasks.append({
-            'id': f'questions-{feature_slug}-iter-1',
-            'agent': 'tech-lead',
+            'id': f'breakdown-{feature_slug}',
+            'agent': 'product-spec',
             'input': {
+                'mode': 'feature-breakdown',
                 'feature': feature_slug,
-                'iteration': 1,
+                'feature_name': feature,
                 'prd_file': prd_path
             },
             'dependencies': [],
@@ -127,7 +112,7 @@ def extract_and_create_tasks():
     with open('docs/.state/pending-tasks.json', 'w') as f:
         json.dump({'tasks': tasks}, f, indent=2)
     
-    print(f"✅ Created {len(tasks)} tech-lead tasks", file=sys.stderr)
+    print(f"✅ Created {len(tasks)} feature breakdown tasks", file=sys.stderr)
 
 def check_stage_feature_refinement():
     """Stage 4: Features being refined - any pending tasks?"""
@@ -210,7 +195,7 @@ def find_next_task():
     stages = [
         check_stage_prd_creation,
         check_stage_prd_approval,
-        check_stage_feature_extraction,
+        check_stage_feature_breakdown,
         check_stage_feature_refinement,
         check_stage_foundation_analysis,
     ]

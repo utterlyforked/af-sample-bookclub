@@ -81,29 +81,38 @@ def get_output_path(agent, task_input):
     """Determine where to save agent output."""
     
     if agent == 'product-spec':
-        # Check if this is initial (no iteration) or refinement
-        iteration = task_input.get('iteration', 0)
-        if iteration == 0:
-            return 'docs/01-prd/prd-v1.0.md'
-        else:
+        mode = task_input.get('mode', 'initial')
+        
+        if mode == 'feature-breakdown':
+            # Breaking down a feature into its own document
             feature = task_input.get('feature', 'unknown')
-            return f'docs/02-refinement/{feature}/prd-v1.{iteration}.md'
+            return f'docs/02-features/{feature}.md'
+        
+        elif task_input.get('iteration', 0) == 0:
+            # Initial PRD creation
+            return 'docs/01-prd/prd-v1.0.md'
+        
+        else:
+            # Feature refinement (answering tech-lead questions)
+            feature = task_input.get('feature', 'unknown')
+            iteration = task_input.get('iteration')
+            return f'docs/03-refinement/{feature}/updated-v1.{iteration}.md'
     
     elif agent == 'tech-lead':
         feature = task_input.get('feature', 'unknown')
         iteration = task_input.get('iteration', 1)
-        return f'docs/02-refinement/{feature}/questions-iter-{iteration}.md'
+        return f'docs/03-refinement/{feature}/questions-iter-{iteration}.md'
     
     elif agent == 'foundation-architect':
-        return 'docs/03-foundation/foundation-analysis.md'
+        return 'docs/04-foundation/foundation-analysis.md'
     
     elif agent == 'engineering-spec':
         spec_type = task_input.get('type', 'feature')
         if spec_type == 'foundation':
-            return 'docs/04-specs/foundation-spec.md'
+            return 'docs/05-specs/foundation-spec.md'
         else:
             feature = task_input.get('feature', 'unknown')
-            return f'docs/04-specs/{feature}-spec.md'
+            return f'docs/05-specs/{feature}-spec.md'
     
     return f'docs/output/{agent}-output.md'
 
@@ -160,35 +169,49 @@ def create_next_tasks(completed_task, output_path):
     agent = completed_task['agent']
     next_tasks = []
     
-    if agent == 'product-spec' and completed_task['input'].get('iteration', 0) == 0:
-        # Check if PRD is approved before extracting features
-        prd_dir = os.path.dirname(output_path)
-        approval_file = os.path.join(prd_dir, '.approved')
+    if agent == 'product-spec':
+        mode = completed_task['input'].get('mode', 'initial')
         
-        if os.path.exists(approval_file):
-            # PRD approved, extract features and create refinement tasks
-            features = extract_features_from_prd(output_path)
+        if mode == 'feature-breakdown':
+            # Feature document created, now tech-lead should review it
+            feature = completed_task['input']['feature']
+            next_tasks.append({
+                'id': f'questions-{feature}-iter-1',
+                'agent': 'tech-lead',
+                'input': {
+                    'feature': feature,
+                    'iteration': 1,
+                    'feature_doc': output_path
+                },
+                'dependencies': [],
+                'priority': 1
+            })
+        
+        elif completed_task['input'].get('iteration', 0) == 0:
+            # Initial PRD completed - handled by find-next-task stage logic
+            prd_dir = os.path.dirname(output_path)
+            approval_file = os.path.join(prd_dir, '.approved')
             
-            if features:
-                print(f"📋 Found {len(features)} features in PRD")
-                for i, feature in enumerate(features, 1):
-                    feature_slug = feature.lower().replace(' ', '-').replace(':', '')
-                    next_tasks.append({
-                        'id': f'questions-{feature_slug}-iter-1',
-                        'agent': 'tech-lead',
-                        'input': {
-                            'feature': feature_slug,
-                            'iteration': 1,
-                            'prd_file': output_path
-                        },
-                        'dependencies': [],
-                        'priority': i
-                    })
-                    print(f"  - {feature}")
+            if os.path.exists(approval_file):
+                print("⚠️  .approved file shouldn't exist yet on initial PRD creation")
             else:
-                print("⚠️  No features found in PRD")
+                print("📋 PRD created. Review it, then create docs/01-prd/.approved to continue")
+        
         else:
-            print("📋 PRD created. Review it, then create docs/01-prd/.approved to continue")
+            # Feature refinement - answered tech-lead questions
+            feature = completed_task['input']['feature']
+            iteration = completed_task['input']['iteration']
+            next_tasks.append({
+                'id': f'questions-{feature}-iter-{iteration + 1}',
+                'agent': 'tech-lead',
+                'input': {
+                    'feature': feature,
+                    'iteration': iteration + 1,
+                    'feature_doc': output_path
+                },
+                'dependencies': [],
+                'priority': 1
+            })
     
     elif agent == 'tech-lead':
         # Check if "READY FOR IMPLEMENTATION"
@@ -211,22 +234,6 @@ def create_next_tasks(completed_task, output_path):
                     'priority': 1
                 })
     
-    elif agent == 'product-spec' and completed_task['input'].get('iteration', 0) > 0:
-        # After product-spec refinement, create next tech-lead iteration
-        feature = completed_task['input']['feature']
-        iteration = completed_task['input']['iteration']
-        next_tasks.append({
-            'id': f'questions-{feature}-iter-{iteration + 1}',
-            'agent': 'tech-lead',
-            'input': {
-                'feature': feature,
-                'iteration': iteration + 1,
-                'prd_file': output_path
-            },
-            'dependencies': [],
-            'priority': 1
-        })
-    
     # Add new tasks to pending
     if next_tasks:
         with open('docs/.state/pending-tasks.json') as f:
@@ -242,6 +249,53 @@ def create_next_tasks(completed_task, output_path):
 def run_task(task_id, agent):
     """Main task execution."""
     
+    # Special case: feature extraction (not a real LLM agent)
+    if agent == 'feature-extractor':
+        print(f"\n{'='*60}")
+        print(f"Running task: {task_id}")
+        print(f"Agent: {agent} (extraction logic)")
+        print(f"{'='*60}\n")
+        
+        # Extract features from PRD
+        prd_path = 'docs/01-prd/prd-v1.0.md'
+        features = extract_features_from_prd(prd_path)
+        
+        if features:
+            print(f"📋 Found {len(features)} features in PRD")
+            
+            # Create tech-lead tasks for each feature
+            next_tasks = []
+            for i, feature in enumerate(features, 1):
+                feature_slug = feature.lower().replace(' ', '-').replace(':', '')
+                next_tasks.append({
+                    'id': f'questions-{feature_slug}-iter-1',
+                    'agent': 'tech-lead',
+                    'input': {
+                        'feature': feature_slug,
+                        'iteration': 1,
+                        'prd_file': prd_path
+                    },
+                    'dependencies': [],
+                    'priority': i
+                })
+                print(f"  - {feature}")
+            
+            # Add tasks to pending
+            with open('docs/.state/pending-tasks.json') as f:
+                pending = json.load(f)
+            
+            pending['tasks'].extend(next_tasks)
+            
+            with open('docs/.state/pending-tasks.json', 'w') as f:
+                json.dump(pending, f, indent=2)
+            
+            print(f"\n✅ Created {len(next_tasks)} tech-lead tasks")
+        else:
+            print("⚠️  No features found in PRD")
+        
+        return
+    
+    # Normal LLM agent execution
     # Load task
     task = load_task(task_id)
     task_input = task.get('input', {})
