@@ -74,24 +74,6 @@ Small book clubs (3-15 members) need a lightweight tool focused specifically on 
 
 ---
 
-### Feature 3: Democratic Voting
-
-**Purpose**: Allow fair, transparent voting on book suggestions
-
-**User Stories**:
-- As a book club member, I want to upvote suggestions I'm interested in so that I can influence our group's decision
-- As a book club member, I want to see vote counts so that I can gauge group interest in different books
-- As a book club member, I want my voting to be anonymous so that I can vote honestly without social pressure
-
-**Acceptance Criteria**:
-- Members can upvote any suggestion (one vote per member per suggestion)
-- Vote counts are visible to all members
-- Voter identity is anonymous (members see counts but not who voted)
-- Members can change their votes at any time
-- Suggestions are sorted by vote count (highest first) by default
-
----
-
 ### Feature 4: Current Book Management
 
 **Purpose**: Track what the group is currently reading
