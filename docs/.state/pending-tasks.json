@@ -1,3 +1,52 @@
 {
-  "tasks": []
+  "tasks": [
+    {
+      "id": "spec-FEAT-01",
+      "agent": "engineering-spec",
+      "input": {
+        "feature_id": "FEAT-01",
+        "feature": "tool-inventory-management",
+        "feature_doc": "docs/03-refinement/FEAT-01-tool-inventory-management/updated-v1.1.md",
+        "foundation_doc": "docs/04-foundation/foundation-analysis.md"
+      },
+      "dependencies": [],
+      "priority": 1
+    },
+    {
+      "id": "spec-FEAT-02",
+      "agent": "engineering-spec",
+      "input": {
+        "feature_id": "FEAT-02",
+        "feature": "tool-discovery-&-search",
+        "feature_doc": "docs/03-refinement/FEAT-02-tool-discovery-&-search/updated-v1.1.md",
+        "foundation_doc": "docs/04-foundation/foundation-analysis.md"
+      },
+      "dependencies": [],
+      "priority": 2
+    },
+    {
+      "id": "spec-FEAT-03",
+      "agent": "engineering-spec",
+      "input": {
+        "feature_id": "FEAT-03",
+        "feature": "borrowing-request-system",
+        "feature_doc": "docs/03-refinement/FEAT-03-borrowing-request-system/updated-v1.1.md",
+        "foundation_doc": "docs/04-foundation/foundation-analysis.md"
+      },
+      "dependencies": [],
+      "priority": 3
+    },
+    {
+      "id": "spec-FEAT-04",
+      "agent": "engineering-spec",
+      "input": {
+        "feature_id": "FEAT-04",
+        "feature": "loan-tracking-&-returns",
+        "feature_doc": "docs/03-refinement/FEAT-04-loan-tracking-&-returns/updated-v1.1.md",
+        "foundation_doc": "docs/04-foundation/foundation-analysis.md"
+      },
+      "dependencies": [],
+      "priority": 4
+    }
+  ]
 }
