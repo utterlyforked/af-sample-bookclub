@@ -81,17 +81,32 @@ def check_stage_feature_breakdown():
     if not approval_file.exists():
         return None  # Not at this stage yet
     
+    # Check if there are still pending breakdown tasks (partial progress case)
+    pending_path = Path('docs/.state/pending-tasks.json')
+    if pending_path.exists():
+        with open(pending_path) as f:
+            pending = json.load(f)
+        breakdown_tasks = [t for t in pending.get('tasks', []) if t['id'].startswith('breakdown-')]
+        if breakdown_tasks:
+            first_task = breakdown_tasks[0]
+            return {
+                'has_task': True,
+                'task_id': first_task['id'],
+                'agent': first_task['agent'],
+                'stage': 'feature-breakdown'
+            }
+
     # Check if features have been broken down (feature docs exist)
     features_dir = Path('docs/02-features')
-    
+
     if features_dir.exists() and list(features_dir.glob('*.md')):
-        # Features already broken down
+        # All breakdown tasks done and feature docs exist — move on
         return None
-    
-    # Need to break down features
+
+    # Need to break down features — create the tasks
     print("📋 Breaking down PRD into individual feature documents...", file=sys.stderr)
     create_feature_breakdown_tasks()
-    
+
     # Return the first feature breakdown task
     with open('docs/.state/pending-tasks.json') as f:
         pending = json.load(f)
@@ -103,7 +118,7 @@ def check_stage_feature_breakdown():
                 'agent': first_task['agent'],
                 'stage': 'feature-breakdown'
             }
-    
+
     return None
 
 def create_feature_breakdown_tasks():
@@ -302,55 +317,92 @@ def create_tech_lead_tasks():
     
     print(f"✅ Created {len(tasks)} tech-lead review tasks", file=sys.stderr)
 
-def check_stage_foundation_analysis():
-    """Stage 5: All features refined, need foundation analysis?"""
-    
-    # Check if all features are marked as READY
+def check_stage_specs_approval():
+    """Stage 5: All features refined — wait for human to review and approve before foundation."""
     refinement_dir = Path('docs/03-refinement')
-    
+    approval_file = Path('docs/03-refinement/.approved')
+
+    # Already approved — move on
+    if approval_file.exists():
+        return None
+
+    # Not at this stage yet if refinement hasn't started
     if not refinement_dir.exists():
         return None
-    
-    # Look for features that are ready
-    ready_features = []
+
+    # Check if there are still pending refinement/questions tasks — not done yet
+    if Path('docs/.state/pending-tasks.json').exists():
+        with open('docs/.state/pending-tasks.json') as f:
+            pending = json.load(f)
+        if any(
+            t['id'].startswith('questions-') or t['id'].startswith('refine-')
+            for t in pending.get('tasks', [])
+        ):
+            return None  # Refinement still in progress
+
+    # Check if ALL features are marked READY FOR IMPLEMENTATION
+    features_dir = Path('docs/02-features')
+    if not features_dir.exists():
+        return None
+
+    expected_features = {f.stem for f in features_dir.glob('*.md')}
+    if not expected_features:
+        return None
+
+    ready_features = set()
     for feature_dir in refinement_dir.iterdir():
         if not feature_dir.is_dir():
             continue
-        
-        # Check if any questions file contains "READY FOR IMPLEMENTATION"
-        for questions_file in feature_dir.glob('questions-*.md'):
+        for questions_file in sorted(feature_dir.glob('questions-*.md'), reverse=True):
             with open(questions_file) as f:
                 if 'READY FOR IMPLEMENTATION' in f.read():
-                    ready_features.append(feature_dir.name)
+                    ready_features.add(feature_dir.name)
                     break
-    
-    # If we have ready features but no foundation analysis
-    foundation_file = Path('docs/04-foundation/foundation-analysis.md')
 
-    if ready_features and not foundation_file.exists():
-        task = {
-            'id': 'foundation-analysis',
-            'agent': 'foundation-architect',
-            'input': {
-                'feature_docs': get_latest_feature_docs()
-            },
-            'dependencies': [],
-            'priority': 1
-        }
-        with open('docs/.state/pending-tasks.json', 'w') as f:
-            json.dump({'tasks': [task]}, f, indent=2)
-
+    if ready_features >= expected_features:
+        # All features ready — pause for human review
         return {
-            'has_task': True,
-            'task_id': 'foundation-analysis',
-            'agent': 'foundation-architect',
-            'stage': 'foundation-analysis'
+            'has_task': False,
+            'reason': 'waiting-for-specs-approval',
+            'stage': 'specs-approval-gate'
         }
 
     return None
 
+
+def check_stage_foundation_analysis():
+    """Stage 6: Specs approved by human, run foundation analysis."""
+    approval_file = Path('docs/03-refinement/.approved')
+
+    if not approval_file.exists():
+        return None
+
+    foundation_file = Path('docs/04-foundation/foundation-analysis.md')
+
+    if foundation_file.exists():
+        return None
+
+    task = {
+        'id': 'foundation-analysis',
+        'agent': 'foundation-architect',
+        'input': {
+            'feature_docs': get_latest_feature_docs()
+        },
+        'dependencies': [],
+        'priority': 1
+    }
+    with open('docs/.state/pending-tasks.json', 'w') as f:
+        json.dump({'tasks': [task]}, f, indent=2)
+
+    return {
+        'has_task': True,
+        'task_id': 'foundation-analysis',
+        'agent': 'foundation-architect',
+        'stage': 'foundation-analysis'
+    }
+
 def check_stage_engineering_specs():
-    """Stage 6: Foundation done, generate engineering specs for each feature."""
+    """Stage 7: Foundation done, generate engineering specs for each feature."""
     foundation_file = Path('docs/04-foundation/foundation-analysis.md')
 
     if not foundation_file.exists():
@@ -430,6 +482,7 @@ def find_next_task():
         check_stage_prd_approval,
         check_stage_feature_breakdown,
         check_stage_feature_refinement,
+        check_stage_specs_approval,
         check_stage_foundation_analysis,
         check_stage_engineering_specs,
     ]
