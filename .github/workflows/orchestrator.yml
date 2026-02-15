@@ -1,0 +1,64 @@
+name: Agentic Orchestrator
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/.state/**'
+      - 'docs/**'
+  
+  workflow_dispatch:
+
+jobs:
+  orchestrate:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          pip install anthropic==0.39.0
+      
+      - name: Find next task
+        id: next-task
+        run: |
+          python scripts/find-next-task.py >> $GITHUB_OUTPUT
+      
+      - name: Run task
+        if: steps.next-task.outputs.has_task == 'true'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          TASK_ID: ${{ steps.next-task.outputs.task_id }}
+          AGENT: ${{ steps.next-task.outputs.agent }}
+        run: |
+          python scripts/run-task.py \
+            --task-id "$TASK_ID" \
+            --agent "$AGENT"
+      
+      - name: Commit results
+        if: steps.next-task.outputs.has_task == 'true'
+        run: |
+          git config user.name "Agentic Bot"
+          git config user.email "bot@agentic.dev"
+          git add docs/
+          git commit -m "agent(${{ steps.next-task.outputs.agent }}): completed task ${{ steps.next-task.outputs.task_id }}" || echo "No changes to commit"
+          git push
+      
+      - name: Check if more tasks
+        if: steps.next-task.outputs.has_task == 'true'
+        run: |
+          echo "✅ Task completed. Push will trigger next task if any remain."
+      
+      - name: All done
+        if: steps.next-task.outputs.has_task == 'false'
+        run: |
+          echo "🎉 All tasks complete! Check docs/ for specifications."
