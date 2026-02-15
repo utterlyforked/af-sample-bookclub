@@ -99,22 +99,6 @@ This creates a triple problem: financial waste for individuals, environmental wa
 
 ---
 
-### Feature 5: Community Reputation System
-
-**Purpose**: Build trust through transparent feedback and establish reliable community members
-
-**User Stories**:
-- As a tool owner, I want to rate borrowers on timeliness and care so I can make informed lending decisions
-- As a borrower, I want to rate tool owners on tool condition and communication so I can choose reliable lenders
-- As a community member, I want to see reputation scores so I can trust people I haven't met before
-
-**Acceptance Criteria**:
-- After each completed loan, both parties rate each other (1-5 stars) on reliability, communication, and care
-- User profiles show overall rating, number of completed transactions, and written reviews from recent exchanges
-- Users with consistently high ratings get "Trusted Member" badges and priority in borrowing requests
-- Users can block specific community members or report problematic behavior
-
----
 
 ## Success Metrics
 
