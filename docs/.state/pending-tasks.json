@@ -1,3 +1,15 @@
 {
-  "tasks": []
+  "tasks": [
+    {
+      "id": "prd-initial",
+      "agent": "product-spec",
+      "type": "planning",
+      "input": {
+        "user_idea_file": "docs/00-user-idea.md",
+        "iteration": 0
+      },
+      "dependencies": [],
+      "priority": 1
+    }
+  ]
 }
