@@ -35,18 +35,6 @@
       },
       "dependencies": [],
       "priority": 4
-    },
-    {
-      "id": "questions-FEAT-01-iter-2",
-      "agent": "tech-lead",
-      "input": {
-        "feature_id": "FEAT-01",
-        "feature": "tool-inventory-management",
-        "iteration": 2,
-        "feature_doc": "docs/03-refinement/FEAT-01-tool-inventory-management/updated-v1.1.md"
-      },
-      "dependencies": [],
-      "priority": 1
     }
   ]
 }
