@@ -254,6 +254,19 @@
       "dependencies": [],
       "priority": 1,
       "completed_at": "2026-02-15T17:59:25.715408"
+    },
+    {
+      "id": "spec-FEAT-02",
+      "agent": "engineering-spec",
+      "input": {
+        "feature_id": "FEAT-02",
+        "feature": "tool-discovery-&-search",
+        "feature_doc": "docs/03-refinement/FEAT-02-tool-discovery-&-search/updated-v1.1.md",
+        "foundation_doc": "docs/04-foundation/foundation-analysis.md"
+      },
+      "dependencies": [],
+      "priority": 2,
+      "completed_at": "2026-02-15T18:01:08.273736"
     }
   ]
 }

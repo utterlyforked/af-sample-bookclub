@@ -1,18 +1,6 @@
 {
   "tasks": [
     {
-      "id": "spec-FEAT-02",
-      "agent": "engineering-spec",
-      "input": {
-        "feature_id": "FEAT-02",
-        "feature": "tool-discovery-&-search",
-        "feature_doc": "docs/03-refinement/FEAT-02-tool-discovery-&-search/updated-v1.1.md",
-        "foundation_doc": "docs/04-foundation/foundation-analysis.md"
-      },
-      "dependencies": [],
-      "priority": 2
-    },
-    {
       "id": "spec-FEAT-03",
       "agent": "engineering-spec",
       "input": {
