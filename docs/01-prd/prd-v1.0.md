@@ -109,26 +109,6 @@ Teachers currently struggle with fragmented workflows that disconnect lesson pla
 
 ---
 
-### Feature 5: Student & Parent Communication
-
-**Purpose**: Facilitate professional communication with students and parents through integrated messaging and progress sharing
-
-**User Stories**:
-- As a teacher, I want to send progress updates to parents so that they can support their child's learning at home
-- As a teacher, I want to share behavior reports and academic progress in a professional format so that parents have clear, actionable information
-- As a teacher, I want to schedule and track parent communications so that I can maintain regular contact and document conversations
-- As a teacher, I want to send positive recognition messages to celebrate student achievements so that I can reinforce good behaviors and academic success
-
-**Acceptance Criteria**:
-- Teachers can generate and send automated progress reports combining behavior and academic data
-- Email templates for common communications (progress updates, behavior concerns, positive recognition)
-- Communication log tracks all parent/student interactions with timestamps and outcomes
-- Parents receive professional, branded communications with clear student data
-- Positive behavior and achievement recognition can be sent immediately when logged
-- Teachers can schedule follow-up communications and set reminders
-
----
-
 ## Success Metrics
 
 - **User Engagement**: Teachers log into the platform at least 4 days per week (target: 85% of active users)
