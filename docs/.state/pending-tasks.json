@@ -1,16 +1,3 @@
 {
-  "tasks": [
-    {
-      "id": "spec-FEAT-04",
-      "agent": "engineering-spec",
-      "input": {
-        "feature_id": "FEAT-04",
-        "feature": "loan-tracking-&-returns",
-        "feature_doc": "docs/03-refinement/FEAT-04-loan-tracking-&-returns/updated-v1.1.md",
-        "foundation_doc": "docs/04-foundation/foundation-analysis.md"
-      },
-      "dependencies": [],
-      "priority": 4
-    }
-  ]
+  "tasks": []
 }

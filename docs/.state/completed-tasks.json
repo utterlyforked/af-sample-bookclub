@@ -280,6 +280,19 @@
       "dependencies": [],
       "priority": 3,
       "completed_at": "2026-02-15T18:02:40.279941"
+    },
+    {
+      "id": "spec-FEAT-04",
+      "agent": "engineering-spec",
+      "input": {
+        "feature_id": "FEAT-04",
+        "feature": "loan-tracking-&-returns",
+        "feature_doc": "docs/03-refinement/FEAT-04-loan-tracking-&-returns/updated-v1.1.md",
+        "foundation_doc": "docs/04-foundation/foundation-analysis.md"
+      },
+      "dependencies": [],
+      "priority": 4,
+      "completed_at": "2026-02-15T18:04:09.053601"
     }
   ]
 }
