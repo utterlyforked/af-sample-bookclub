@@ -12,7 +12,22 @@ def check_stage_prd_creation():
     prd_file = Path('docs/01-prd/prd-v1.0.md')
     
     if not prd_file.exists():
-        # Need to create PRD
+        # Need to create PRD - add task to pending
+        task = {
+            'id': 'prd-initial',
+            'agent': 'product-spec',
+            'input': {
+                'user_idea_file': 'docs/00-user-idea.md',
+                'iteration': 0
+            },
+            'dependencies': [],
+            'priority': 1
+        }
+        
+        # Write to pending
+        with open('docs/.state/pending-tasks.json', 'w') as f:
+            json.dump({'tasks': [task]}, f, indent=2)
+        
         return {
             'has_task': True,
             'task_id': 'prd-initial',
