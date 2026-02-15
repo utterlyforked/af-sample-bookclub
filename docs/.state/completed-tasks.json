@@ -23,6 +23,18 @@
       "dependencies": [],
       "priority": 1,
       "completed_at": "2026-02-15T12:45:56.474852"
+    },
+    {
+      "id": "questions-lesson-planning-&-management-iter-1",
+      "agent": "tech-lead",
+      "input": {
+        "feature": "lesson-planning-&-management",
+        "iteration": 1,
+        "feature_doc": "docs/02-features/lesson-planning-&-management.md"
+      },
+      "dependencies": [],
+      "priority": 1,
+      "completed_at": "2026-02-15T12:49:10.291635"
     }
   ]
 }
