@@ -9,6 +9,27 @@ import argparse
 from pathlib import Path
 from anthropic import Anthropic
 
+MAX_REFINEMENT_ITERATIONS = 5
+
+
+def get_latest_feature_docs():
+    """Return the most up-to-date doc path for each feature."""
+    features_dir = Path('docs/02-features')
+    refinement_dir = Path('docs/03-refinement')
+    docs = []
+
+    for feature_file in sorted(features_dir.glob('*.md')):
+        refined_dir = refinement_dir / feature_file.stem
+        if refined_dir.exists():
+            updates = sorted(refined_dir.glob('updated-v1.*.md'))
+            if updates:
+                docs.append(str(updates[-1]))
+                continue
+        docs.append(str(feature_file))
+
+    return docs
+
+
 def load_task(task_id):
     """Load task from pending queue."""
     with open('docs/.state/pending-tasks.json') as f:
@@ -23,19 +44,51 @@ def load_task(task_id):
 def load_agent_prompt(agent, task_input):
     """Load agent prompt and inject task input."""
     prompt_file = Path(f'agents/{agent}/prompt.md')
-    
+
     if not prompt_file.exists():
         raise FileNotFoundError(f"Agent prompt not found: {prompt_file}")
-    
+
     with open(prompt_file) as f:
         prompt = f.read()
-    
-    # Add task input
+
+    # Inject referenced file contents before the task input JSON
+    file_keys = {
+        'user_idea_file': 'User Idea',
+        'prd_file': 'PRD',
+        'feature_doc': 'Feature Document',
+        'questions_file': 'Tech Lead Questions',
+        'foundation_doc': 'Foundation Analysis',
+    }
+    for key, label in file_keys.items():
+        if key in task_input:
+            path = Path(task_input[key])
+            if path.exists():
+                prompt += f"\n\n## {label}\n\n"
+                prompt += path.read_text()
+            else:
+                raise FileNotFoundError(f"Input file not found for '{key}': {path}")
+
+    # Inject a list of feature documents (used by foundation-architect)
+    for i, doc_path in enumerate(task_input.get('feature_docs', []), 1):
+        path = Path(doc_path)
+        if path.exists():
+            prompt += f"\n\n## Feature Document {i}: {path.stem}\n\n"
+            prompt += path.read_text()
+        else:
+            raise FileNotFoundError(f"Feature doc not found: {path}")
+
+    # Always inject tech stack context if available
+    tech_stack = Path('context/tech-stack-standards.md')
+    if tech_stack.exists():
+        prompt += "\n\n## Tech Stack Standards\n\n"
+        prompt += tech_stack.read_text()
+
+    # Add task input metadata
     prompt += "\n\n## Task Input\n\n"
     prompt += "```json\n"
     prompt += json.dumps(task_input, indent=2)
     prompt += "\n```\n"
-    
+
     return prompt
 
 def call_agent(agent, prompt):
@@ -204,28 +257,62 @@ def create_next_tasks(completed_task, output_path):
             })
     
     elif agent == 'tech-lead':
-        # Check if "READY FOR IMPLEMENTATION"
+        feature_id = completed_task['input'].get('feature_id', 'FEAT-XX')
+        feature = completed_task['input']['feature']
+        iteration = completed_task['input']['iteration']
+
         with open(output_path) as f:
-            if 'READY FOR IMPLEMENTATION' in f.read():
-                print("✅ Feature ready for implementation")
-            else:
-                # Create product-spec refinement task
-                feature_id = completed_task['input'].get('feature_id', 'FEAT-XX')
-                feature = completed_task['input']['feature']
-                iteration = completed_task['input']['iteration']
+            content = f.read()
+
+        if 'READY FOR IMPLEMENTATION' in content:
+            print(f"✅ {feature_id} ready for implementation")
+        elif iteration >= MAX_REFINEMENT_ITERATIONS:
+            print(f"⚠️  Max refinement iterations ({MAX_REFINEMENT_ITERATIONS}) reached for {feature_id}, marking ready")
+            with open(output_path, 'a') as f:
+                f.write(f"\n\n---\n\n**Status**: READY FOR IMPLEMENTATION\n\n*Note: Forced ready after {MAX_REFINEMENT_ITERATIONS} iterations.*\n")
+        else:
+            next_tasks.append({
+                'id': f'refine-{feature_id}-iter-{iteration}',
+                'agent': 'product-spec',
+                'input': {
+                    'feature_id': feature_id,
+                    'feature': feature,
+                    'iteration': iteration,
+                    'feature_doc': completed_task['input']['feature_doc'],
+                    'questions_file': output_path
+                },
+                'dependencies': [],
+                'priority': 1
+            })
+
+    elif agent == 'foundation-architect':
+        # Create engineering spec tasks for all features
+        registry_path = Path('docs/.state/feature-registry.json')
+        if not registry_path.exists():
+            print("⚠️  No feature registry, cannot create engineering spec tasks")
+        else:
+            with open(registry_path) as f:
+                registry = json.load(f)
+            feature_docs = get_latest_feature_docs()
+            for i, (feature_id, feature) in enumerate(registry.items(), 1):
+                feature_doc = next(
+                    (d for d in feature_docs if feature_id in d),
+                    f"docs/02-features/{feature_id}-{feature['slug']}.md"
+                )
                 next_tasks.append({
-                    'id': f'refine-{feature_id}-iter-{iteration}',
-                    'agent': 'product-spec',
+                    'id': f'spec-{feature_id}',
+                    'agent': 'engineering-spec',
                     'input': {
                         'feature_id': feature_id,
-                        'feature': feature,
-                        'iteration': iteration,
-                        'questions_file': output_path
+                        'feature': feature['slug'],
+                        'feature_doc': feature_doc,
+                        'foundation_doc': output_path
                     },
                     'dependencies': [],
-                    'priority': 1
+                    'priority': i
                 })
-    
+            print(f"📋 Created {len(next_tasks)} engineering spec task(s)")
+
     # Add new tasks to pending
     if next_tasks:
         with open('docs/.state/pending-tasks.json') as f:

@@ -7,6 +7,28 @@ import sys
 import os
 from pathlib import Path
 
+def get_latest_feature_docs():
+    """Return the most up-to-date doc path for each feature.
+
+    Prefers the latest refined version in docs/03-refinement/ over the
+    initial breakdown in docs/02-features/.
+    """
+    features_dir = Path('docs/02-features')
+    refinement_dir = Path('docs/03-refinement')
+    docs = []
+
+    for feature_file in sorted(features_dir.glob('*.md')):
+        refined_dir = refinement_dir / feature_file.stem
+        if refined_dir.exists():
+            updates = sorted(refined_dir.glob('updated-v1.*.md'))
+            if updates:
+                docs.append(str(updates[-1]))
+                continue
+        docs.append(str(feature_file))
+
+    return docs
+
+
 def check_stage_prd_creation():
     """Stage 1: Do we need to create the PRD?"""
     prd_file = Path('docs/01-prd/prd-v1.0.md')
@@ -284,7 +306,7 @@ def check_stage_foundation_analysis():
     """Stage 5: All features refined, need foundation analysis?"""
     
     # Check if all features are marked as READY
-    refinement_dir = Path('docs/02-refinement')
+    refinement_dir = Path('docs/03-refinement')
     
     if not refinement_dir.exists():
         return None
@@ -303,17 +325,96 @@ def check_stage_foundation_analysis():
                     break
     
     # If we have ready features but no foundation analysis
-    foundation_file = Path('docs/03-foundation/foundation-analysis.md')
-    
+    foundation_file = Path('docs/04-foundation/foundation-analysis.md')
+
     if ready_features and not foundation_file.exists():
+        task = {
+            'id': 'foundation-analysis',
+            'agent': 'foundation-architect',
+            'input': {
+                'feature_docs': get_latest_feature_docs()
+            },
+            'dependencies': [],
+            'priority': 1
+        }
+        with open('docs/.state/pending-tasks.json', 'w') as f:
+            json.dump({'tasks': [task]}, f, indent=2)
+
         return {
             'has_task': True,
             'task_id': 'foundation-analysis',
             'agent': 'foundation-architect',
             'stage': 'foundation-analysis'
         }
-    
+
     return None
+
+def check_stage_engineering_specs():
+    """Stage 6: Foundation done, generate engineering specs for each feature."""
+    foundation_file = Path('docs/04-foundation/foundation-analysis.md')
+
+    if not foundation_file.exists():
+        return None
+
+    # Return any spec tasks already in the pending queue
+    if Path('docs/.state/pending-tasks.json').exists():
+        with open('docs/.state/pending-tasks.json') as f:
+            pending = json.load(f)
+        spec_tasks = [t for t in pending.get('tasks', []) if t['id'].startswith('spec-')]
+        if spec_tasks:
+            first = spec_tasks[0]
+            return {
+                'has_task': True,
+                'task_id': first['id'],
+                'agent': first['agent'],
+                'stage': 'engineering-specs'
+            }
+
+    # Idempotent fallback: rebuild missing spec tasks from registry
+    registry_path = Path('docs/.state/feature-registry.json')
+    if not registry_path.exists():
+        return None
+
+    with open(registry_path) as f:
+        registry = json.load(f)
+
+    specs_dir = Path('docs/05-specs')
+    feature_docs = get_latest_feature_docs()
+    missing = []
+
+    for i, (feature_id, feature) in enumerate(registry.items(), 1):
+        if (specs_dir / f"{feature_id}-{feature['slug']}-spec.md").exists():
+            continue
+        feature_doc = next(
+            (d for d in feature_docs if feature_id in d),
+            f"docs/02-features/{feature_id}-{feature['slug']}.md"
+        )
+        missing.append({
+            'id': f'spec-{feature_id}',
+            'agent': 'engineering-spec',
+            'input': {
+                'feature_id': feature_id,
+                'feature': feature['slug'],
+                'feature_doc': feature_doc,
+                'foundation_doc': str(foundation_file)
+            },
+            'dependencies': [],
+            'priority': i
+        })
+
+    if not missing:
+        return None
+
+    with open('docs/.state/pending-tasks.json', 'w') as f:
+        json.dump({'tasks': missing}, f, indent=2)
+
+    return {
+        'has_task': True,
+        'task_id': missing[0]['id'],
+        'agent': missing[0]['agent'],
+        'stage': 'engineering-specs'
+    }
+
 
 def find_next_task():
     """
@@ -330,6 +431,7 @@ def find_next_task():
         check_stage_feature_breakdown,
         check_stage_feature_refinement,
         check_stage_foundation_analysis,
+        check_stage_engineering_specs,
     ]
     
     for stage_check in stages:
