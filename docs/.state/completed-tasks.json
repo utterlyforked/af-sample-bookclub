@@ -79,6 +79,20 @@
       "dependencies": [],
       "priority": 1,
       "completed_at": "2026-02-15T17:27:20.607358"
+    },
+    {
+      "id": "refine-FEAT-01-iter-1",
+      "agent": "product-spec",
+      "input": {
+        "feature_id": "FEAT-01",
+        "feature": "tool-inventory-management",
+        "iteration": 1,
+        "feature_doc": "docs/02-features/FEAT-01-tool-inventory-management.md",
+        "questions_file": "docs/03-refinement/FEAT-01-tool-inventory-management/questions-iter-1.md"
+      },
+      "dependencies": [],
+      "priority": 1,
+      "completed_at": "2026-02-15T17:28:51.114568"
     }
   ]
 }
