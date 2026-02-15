@@ -58,6 +58,25 @@ def call_agent(agent, prompt):
     
     return response.content[0].text
 
+def extract_features_from_prd(prd_path):
+    """Extract feature names from PRD markdown file."""
+    features = []
+
+    with open(prd_path, 'r') as f:
+        content = f.read()
+
+    # Look for "### Feature N: Name" patterns
+    import re
+    pattern = r'###\s+Feature\s+\d+:\s+(.+)'
+    matches = re.findall(pattern, content)
+
+    for match in matches:
+        # Clean up the feature name
+        feature_name = match.strip()
+        features.append(feature_name)
+
+    return features
+
 def get_output_path(agent, task_input):
     """Determine where to save agent output."""
     
