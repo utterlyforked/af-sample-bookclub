@@ -1,4 +1,5 @@
 name: Agentic Orchestrator
+
 permissions:
   contents: write
 
@@ -6,7 +7,6 @@ on:
   push:
     branches: [main]
     paths:
-      - 'docs/.state/**'
       - 'docs/**'
   
   workflow_dispatch:

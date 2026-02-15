@@ -4,7 +4,7 @@
 
 ## Description
 
-A book club management app for small reading groups to organize their book selections and discussions
+A community tool sharing tracking app
 
 ## Goals
 

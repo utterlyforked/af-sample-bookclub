@@ -105,15 +105,27 @@ def create_feature_breakdown_tasks():
     
     print(f"📋 Found {len(features)} features", file=sys.stderr)
     
-    # Create product-spec breakdown tasks (one per feature)
+    # Create feature registry
+    feature_registry = {}
     tasks = []
+    
     for i, feature in enumerate(features, 1):
-        feature_slug = feature.lower().replace(' ', '-').replace(':', '')
+        feature_id = f"FEAT-{i:02d}"  # FEAT-01, FEAT-02, etc.
+        feature_slug = feature.lower().replace(' ', '-').replace(':', '').replace(',', '')
+        
+        # Store in registry
+        feature_registry[feature_id] = {
+            'id': feature_id,
+            'name': feature,
+            'slug': feature_slug
+        }
+        
         tasks.append({
-            'id': f'breakdown-{feature_slug}',
+            'id': f'breakdown-{feature_id}',
             'agent': 'product-spec',
             'input': {
                 'mode': 'feature-breakdown',
+                'feature_id': feature_id,
                 'feature': feature_slug,
                 'feature_name': feature,
                 'prd_file': prd_path
@@ -121,22 +133,78 @@ def create_feature_breakdown_tasks():
             'dependencies': [],
             'priority': i
         })
-        print(f"  - {feature}", file=sys.stderr)
+        print(f"  - {feature_id}: {feature}", file=sys.stderr)
+    
+    # Save feature registry
+    registry_path = Path('docs/.state/feature-registry.json')
+    with open(registry_path, 'w') as f:
+        json.dump(feature_registry, f, indent=2)
     
     # Save to pending
     with open('docs/.state/pending-tasks.json', 'w') as f:
         json.dump({'tasks': tasks}, f, indent=2)
     
     print(f"✅ Created {len(tasks)} feature breakdown tasks", file=sys.stderr)
+    print(f"✅ Feature registry saved to {registry_path}", file=sys.stderr)
 
 def check_stage_feature_refinement():
-    """Stage 4: Features being refined - any pending tasks?"""
+    """Stage 4: All features broken down, start refinement loops."""
     
-    if not Path('docs/.state/pending-tasks.json').exists():
+    features_dir = Path('docs/02-features')
+    
+    # Check if we have feature docs
+    if not features_dir.exists() or not list(features_dir.glob('*.md')):
+        return None  # No features broken down yet
+    
+    # Count how many features we have
+    feature_files = list(features_dir.glob('*.md'))
+    
+    # Check if ALL breakdown tasks are complete (no pending breakdown tasks)
+    if Path('docs/.state/pending-tasks.json').exists():
+        with open('docs/.state/pending-tasks.json') as f:
+            pending = json.load(f)
+            # If there are still breakdown tasks pending, wait
+            if any(t['id'].startswith('breakdown-') for t in pending.get('tasks', [])):
+                return None  # Still breaking down features
+    
+    # All features broken down! Check if we've created tech-lead tasks yet
+    refinement_started = False
+    
+    if Path('docs/.state/pending-tasks.json').exists():
+        with open('docs/.state/pending-tasks.json') as f:
+            pending = json.load(f)
+            if any(t['agent'] == 'tech-lead' for t in pending.get('tasks', [])):
+                refinement_started = True
+    
+    if Path('docs/.state/completed-tasks.json').exists():
+        with open('docs/.state/completed-tasks.json') as f:
+            completed = json.load(f)
+            if any(t['agent'] == 'tech-lead' for t in completed.get('tasks', [])):
+                refinement_started = True
+    
+    # If refinement hasn't started, create tech-lead tasks for ALL features
+    if not refinement_started:
+        print("📋 All features broken down. Creating tech-lead review tasks...", file=sys.stderr)
+        create_tech_lead_tasks()
+        
+        # Return first tech-lead task
+        with open('docs/.state/pending-tasks.json') as f:
+            pending = json.load(f)
+            if pending.get('tasks'):
+                first_task = pending['tasks'][0]
+                return {
+                    'has_task': True,
+                    'task_id': first_task['id'],
+                    'agent': first_task['agent'],
+                    'stage': 'feature-refinement'
+                }
+    
+    # Refinement in progress - check for pending tasks
+    if Path('docs/.state/pending-tasks.json').exists():
+        with open('docs/.state/pending-tasks.json') as f:
+            pending = json.load(f)
+    else:
         return None
-    
-    with open('docs/.state/pending-tasks.json') as f:
-        pending = json.load(f)
     
     if not pending.get('tasks'):
         return None  # No pending tasks
@@ -162,6 +230,55 @@ def check_stage_feature_refinement():
             }
     
     return None
+
+def create_tech_lead_tasks():
+    """Create tech-lead review tasks for all feature docs."""
+    features_dir = Path('docs/02-features')
+    feature_files = list(features_dir.glob('*.md'))
+    
+    # Load feature registry
+    registry_path = Path('docs/.state/feature-registry.json')
+    if registry_path.exists():
+        with open(registry_path) as f:
+            registry = json.load(f)
+    else:
+        registry = {}
+    
+    tasks = []
+    for i, feature_file in enumerate(sorted(feature_files), 1):
+        # Parse filename: FEAT-01-book-suggestions.md
+        filename = feature_file.stem
+        
+        # Extract feature ID (FEAT-XX)
+        import re
+        match = re.match(r'(FEAT-\d+)-(.+)', filename)
+        if match:
+            feature_id = match.group(1)
+            feature_slug = match.group(2)
+        else:
+            # Fallback if no ID in filename
+            feature_id = f'FEAT-{i:02d}'
+            feature_slug = filename
+        
+        tasks.append({
+            'id': f'questions-{feature_id}-iter-1',
+            'agent': 'tech-lead',
+            'input': {
+                'feature_id': feature_id,
+                'feature': feature_slug,
+                'iteration': 1,
+                'feature_doc': str(feature_file)
+            },
+            'dependencies': [],
+            'priority': i
+        })
+        print(f"  - Creating tech-lead task for {feature_id}: {feature_slug}", file=sys.stderr)
+    
+    # Save to pending
+    with open('docs/.state/pending-tasks.json', 'w') as f:
+        json.dump({'tasks': tasks}, f, indent=2)
+    
+    print(f"✅ Created {len(tasks)} tech-lead review tasks", file=sys.stderr)
 
 def check_stage_foundation_analysis():
     """Stage 5: All features refined, need foundation analysis?"""

@@ -85,8 +85,9 @@ def get_output_path(agent, task_input):
         
         if mode == 'feature-breakdown':
             # Breaking down a feature into its own document
-            feature = task_input.get('feature', 'unknown')
-            return f'docs/02-features/{feature}.md'
+            feature_id = task_input.get('feature_id', 'FEAT-XX')
+            feature_slug = task_input.get('feature', 'unknown')
+            return f'docs/02-features/{feature_id}-{feature_slug}.md'
         
         elif task_input.get('iteration', 0) == 0:
             # Initial PRD creation
@@ -94,14 +95,16 @@ def get_output_path(agent, task_input):
         
         else:
             # Feature refinement (answering tech-lead questions)
-            feature = task_input.get('feature', 'unknown')
+            feature_id = task_input.get('feature_id', 'FEAT-XX')
+            feature_slug = task_input.get('feature', 'unknown')
             iteration = task_input.get('iteration')
-            return f'docs/03-refinement/{feature}/updated-v1.{iteration}.md'
+            return f'docs/03-refinement/{feature_id}-{feature_slug}/updated-v1.{iteration}.md'
     
     elif agent == 'tech-lead':
-        feature = task_input.get('feature', 'unknown')
+        feature_id = task_input.get('feature_id', 'FEAT-XX')
+        feature_slug = task_input.get('feature', 'unknown')
         iteration = task_input.get('iteration', 1)
-        return f'docs/03-refinement/{feature}/questions-iter-{iteration}.md'
+        return f'docs/03-refinement/{feature_id}-{feature_slug}/questions-iter-{iteration}.md'
     
     elif agent == 'foundation-architect':
         return 'docs/04-foundation/foundation-analysis.md'
@@ -111,8 +114,9 @@ def get_output_path(agent, task_input):
         if spec_type == 'foundation':
             return 'docs/05-specs/foundation-spec.md'
         else:
-            feature = task_input.get('feature', 'unknown')
-            return f'docs/05-specs/{feature}-spec.md'
+            feature_id = task_input.get('feature_id', 'FEAT-XX')
+            feature_slug = task_input.get('feature', 'unknown')
+            return f'docs/05-specs/{feature_id}-{feature_slug}-spec.md'
     
     return f'docs/output/{agent}-output.md'
 
@@ -173,38 +177,24 @@ def create_next_tasks(completed_task, output_path):
         mode = completed_task['input'].get('mode', 'initial')
         
         if mode == 'feature-breakdown':
-            # Feature document created, now tech-lead should review it
-            feature = completed_task['input']['feature']
-            next_tasks.append({
-                'id': f'questions-{feature}-iter-1',
-                'agent': 'tech-lead',
-                'input': {
-                    'feature': feature,
-                    'iteration': 1,
-                    'feature_doc': output_path
-                },
-                'dependencies': [],
-                'priority': 1
-            })
+            # Feature document created - DON'T create tech-lead task yet
+            # Wait until ALL features are broken down (handled by find-next-task stage logic)
+            print(f"✅ Feature breakdown complete: {completed_task['input']['feature']}")
         
         elif completed_task['input'].get('iteration', 0) == 0:
-            # Initial PRD completed - handled by find-next-task stage logic
-            prd_dir = os.path.dirname(output_path)
-            approval_file = os.path.join(prd_dir, '.approved')
-            
-            if os.path.exists(approval_file):
-                print("⚠️  .approved file shouldn't exist yet on initial PRD creation")
-            else:
-                print("📋 PRD created. Review it, then create docs/01-prd/.approved to continue")
+            # Initial PRD completed
+            print("📋 PRD created. Review it, then create docs/01-prd/.approved to continue")
         
         else:
             # Feature refinement - answered tech-lead questions
+            feature_id = completed_task['input'].get('feature_id', 'FEAT-XX')
             feature = completed_task['input']['feature']
             iteration = completed_task['input']['iteration']
             next_tasks.append({
-                'id': f'questions-{feature}-iter-{iteration + 1}',
+                'id': f'questions-{feature_id}-iter-{iteration + 1}',
                 'agent': 'tech-lead',
                 'input': {
+                    'feature_id': feature_id,
                     'feature': feature,
                     'iteration': iteration + 1,
                     'feature_doc': output_path
@@ -220,12 +210,14 @@ def create_next_tasks(completed_task, output_path):
                 print("✅ Feature ready for implementation")
             else:
                 # Create product-spec refinement task
+                feature_id = completed_task['input'].get('feature_id', 'FEAT-XX')
                 feature = completed_task['input']['feature']
                 iteration = completed_task['input']['iteration']
                 next_tasks.append({
-                    'id': f'refine-{feature}-iter-{iteration}',
+                    'id': f'refine-{feature_id}-iter-{iteration}',
                     'agent': 'product-spec',
                     'input': {
+                        'feature_id': feature_id,
                         'feature': feature,
                         'iteration': iteration,
                         'questions_file': output_path
