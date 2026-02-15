@@ -106,6 +106,19 @@
       "dependencies": [],
       "priority": 1,
       "completed_at": "2026-02-15T17:29:24.342021"
+    },
+    {
+      "id": "questions-FEAT-02-iter-1",
+      "agent": "tech-lead",
+      "input": {
+        "feature_id": "FEAT-02",
+        "feature": "tool-discovery-&-search",
+        "iteration": 1,
+        "feature_doc": "docs/02-features/FEAT-02-tool-discovery-&-search.md"
+      },
+      "dependencies": [],
+      "priority": 2,
+      "completed_at": "2026-02-15T17:30:30.081140"
     }
   ]
 }
