@@ -66,6 +66,19 @@
       "dependencies": [],
       "priority": 4,
       "completed_at": "2026-02-15T17:26:12.016963"
+    },
+    {
+      "id": "questions-FEAT-01-iter-1",
+      "agent": "tech-lead",
+      "input": {
+        "feature_id": "FEAT-01",
+        "feature": "tool-inventory-management",
+        "iteration": 1,
+        "feature_doc": "docs/02-features/FEAT-01-tool-inventory-management.md"
+      },
+      "dependencies": [],
+      "priority": 1,
+      "completed_at": "2026-02-15T17:27:20.607358"
     }
   ]
 }
