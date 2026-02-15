@@ -1,19 +1,6 @@
 {
   "tasks": [
     {
-      "id": "breakdown-FEAT-02",
-      "agent": "product-spec",
-      "input": {
-        "mode": "feature-breakdown",
-        "feature_id": "FEAT-02",
-        "feature": "tool-discovery-&-search",
-        "feature_name": "Tool Discovery & Search",
-        "prd_file": "docs/01-prd/prd-v1.0.md"
-      },
-      "dependencies": [],
-      "priority": 2
-    },
-    {
       "id": "breakdown-FEAT-03",
       "agent": "product-spec",
       "input": {
