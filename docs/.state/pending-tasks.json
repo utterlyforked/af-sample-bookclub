@@ -37,12 +37,12 @@
       "priority": 4
     },
     {
-      "id": "refine-lesson-planning-&-management-iter-1",
-      "agent": "product-spec",
+      "id": "questions-lesson-planning-&-management-iter-2",
+      "agent": "tech-lead",
       "input": {
         "feature": "lesson-planning-&-management",
-        "iteration": 1,
-        "questions_file": "docs/03-refinement/lesson-planning-&-management/questions-iter-1.md"
+        "iteration": 2,
+        "feature_doc": "docs/03-refinement/lesson-planning-&-management/updated-v1.1.md"
       },
       "dependencies": [],
       "priority": 1
