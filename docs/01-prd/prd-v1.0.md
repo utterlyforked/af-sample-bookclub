@@ -48,23 +48,6 @@ These organizational pain points create unnecessary friction that can derail boo
 
 ---
 
-### Feature 2: Democratic Voting
-
-**Purpose**: Clear, fair process for the group to choose their next book
-
-**User Stories**:
-- As a book club member, I want to vote on suggested books so that we choose something the group actually wants to read
-- As a book club member, I want to see voting results so that I understand what the group prefers
-- As a book club organizer, I want to promote the winning book to "current selection" so that everyone knows what we're reading next
-
-**Acceptance Criteria**:
-- Members can upvote any number of suggestions (no downvoting)
-- Vote counts are visible to all members
-- Individual votes are anonymous (members can't see who voted for what)
-- Only group creator can promote a suggestion to "Currently Reading"
-
----
-
 ### Feature 3: Current Book Tracking
 
 **Purpose**: Clear visibility into what the book club is currently reading
@@ -149,8 +132,3 @@ To maintain focus and ship quickly, the following are intentionally excluded:
 
 ---
 
-## Timeline & Prioritization
-
-**Phase 1 (MVP)**: Group creation, suggestions, voting, current book tracking - 8 weeks  
-**Phase 2**: Reading history, email notifications, UI polish - 4 weeks  
-**Phase 3**: Member management improvements, basic analytics - 4 weeks
