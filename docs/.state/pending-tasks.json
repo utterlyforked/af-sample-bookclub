@@ -13,14 +13,13 @@
       "priority": 4
     },
     {
-      "id": "refine-FEAT-03-iter-1",
-      "agent": "product-spec",
+      "id": "questions-FEAT-03-iter-2",
+      "agent": "tech-lead",
       "input": {
         "feature_id": "FEAT-03",
         "feature": "borrowing-request-system",
-        "iteration": 1,
-        "feature_doc": "docs/02-features/FEAT-03-borrowing-request-system.md",
-        "questions_file": "docs/03-refinement/FEAT-03-borrowing-request-system/questions-iter-1.md"
+        "iteration": 2,
+        "feature_doc": "docs/03-refinement/FEAT-03-borrowing-request-system/updated-v1.1.md"
       },
       "dependencies": [],
       "priority": 1
