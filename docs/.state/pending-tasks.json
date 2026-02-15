@@ -1,3 +1,51 @@
 {
-  "tasks": []
+  "tasks": [
+    {
+      "id": "breakdown-student-behavior-tracking",
+      "agent": "product-spec",
+      "input": {
+        "mode": "feature-breakdown",
+        "feature": "student-behavior-tracking",
+        "feature_name": "Student Behavior Tracking",
+        "prd_file": "docs/01-prd/prd-v1.0.md"
+      },
+      "dependencies": [],
+      "priority": 2
+    },
+    {
+      "id": "breakdown-student-progress-&-performance-analytics",
+      "agent": "product-spec",
+      "input": {
+        "mode": "feature-breakdown",
+        "feature": "student-progress-&-performance-analytics",
+        "feature_name": "Student Progress & Performance Analytics",
+        "prd_file": "docs/01-prd/prd-v1.0.md"
+      },
+      "dependencies": [],
+      "priority": 3
+    },
+    {
+      "id": "breakdown-integrated-daily-dashboard",
+      "agent": "product-spec",
+      "input": {
+        "mode": "feature-breakdown",
+        "feature": "integrated-daily-dashboard",
+        "feature_name": "Integrated Daily Dashboard",
+        "prd_file": "docs/01-prd/prd-v1.0.md"
+      },
+      "dependencies": [],
+      "priority": 4
+    },
+    {
+      "id": "questions-lesson-planning-&-management-iter-1",
+      "agent": "tech-lead",
+      "input": {
+        "feature": "lesson-planning-&-management",
+        "iteration": 1,
+        "feature_doc": "docs/02-features/lesson-planning-&-management.md"
+      },
+      "dependencies": [],
+      "priority": 1
+    }
+  ]
 }
