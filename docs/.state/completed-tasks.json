@@ -267,6 +267,19 @@
       "dependencies": [],
       "priority": 2,
       "completed_at": "2026-02-15T18:01:08.273736"
+    },
+    {
+      "id": "spec-FEAT-03",
+      "agent": "engineering-spec",
+      "input": {
+        "feature_id": "FEAT-03",
+        "feature": "borrowing-request-system",
+        "feature_doc": "docs/03-refinement/FEAT-03-borrowing-request-system/updated-v1.1.md",
+        "foundation_doc": "docs/04-foundation/foundation-analysis.md"
+      },
+      "dependencies": [],
+      "priority": 3,
+      "completed_at": "2026-02-15T18:02:40.279941"
     }
   ]
 }

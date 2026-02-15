@@ -1,18 +1,6 @@
 {
   "tasks": [
     {
-      "id": "spec-FEAT-03",
-      "agent": "engineering-spec",
-      "input": {
-        "feature_id": "FEAT-03",
-        "feature": "borrowing-request-system",
-        "feature_doc": "docs/03-refinement/FEAT-03-borrowing-request-system/updated-v1.1.md",
-        "foundation_doc": "docs/04-foundation/foundation-analysis.md"
-      },
-      "dependencies": [],
-      "priority": 3
-    },
-    {
       "id": "spec-FEAT-04",
       "agent": "engineering-spec",
       "input": {
