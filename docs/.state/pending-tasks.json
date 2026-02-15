@@ -1,3 +1,43 @@
 {
-  "tasks": []
+  "tasks": [
+    {
+      "id": "breakdown-FEAT-02",
+      "agent": "product-spec",
+      "input": {
+        "mode": "feature-breakdown",
+        "feature_id": "FEAT-02",
+        "feature": "tool-discovery-&-search",
+        "feature_name": "Tool Discovery & Search",
+        "prd_file": "docs/01-prd/prd-v1.0.md"
+      },
+      "dependencies": [],
+      "priority": 2
+    },
+    {
+      "id": "breakdown-FEAT-03",
+      "agent": "product-spec",
+      "input": {
+        "mode": "feature-breakdown",
+        "feature_id": "FEAT-03",
+        "feature": "borrowing-request-system",
+        "feature_name": "Borrowing Request System",
+        "prd_file": "docs/01-prd/prd-v1.0.md"
+      },
+      "dependencies": [],
+      "priority": 3
+    },
+    {
+      "id": "breakdown-FEAT-04",
+      "agent": "product-spec",
+      "input": {
+        "mode": "feature-breakdown",
+        "feature_id": "FEAT-04",
+        "feature": "loan-tracking-&-returns",
+        "feature_name": "Loan Tracking & Returns",
+        "prd_file": "docs/01-prd/prd-v1.0.md"
+      },
+      "dependencies": [],
+      "priority": 4
+    }
+  ]
 }
