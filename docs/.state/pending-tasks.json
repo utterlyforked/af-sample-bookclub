@@ -23,18 +23,6 @@
       },
       "dependencies": [],
       "priority": 4
-    },
-    {
-      "id": "questions-FEAT-02-iter-2",
-      "agent": "tech-lead",
-      "input": {
-        "feature_id": "FEAT-02",
-        "feature": "tool-discovery-&-search",
-        "iteration": 2,
-        "feature_doc": "docs/03-refinement/FEAT-02-tool-discovery-&-search/updated-v1.1.md"
-      },
-      "dependencies": [],
-      "priority": 1
     }
   ]
 }
