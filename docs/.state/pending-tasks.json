@@ -1,19 +1,6 @@
 {
   "tasks": [
     {
-      "id": "breakdown-FEAT-03",
-      "agent": "product-spec",
-      "input": {
-        "mode": "feature-breakdown",
-        "feature_id": "FEAT-03",
-        "feature": "borrowing-request-system",
-        "feature_name": "Borrowing Request System",
-        "prd_file": "docs/01-prd/prd-v1.0.md"
-      },
-      "dependencies": [],
-      "priority": 3
-    },
-    {
       "id": "breakdown-FEAT-04",
       "agent": "product-spec",
       "input": {

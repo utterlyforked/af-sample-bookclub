@@ -38,6 +38,20 @@
       "dependencies": [],
       "priority": 2,
       "completed_at": "2026-02-15T17:24:07.653257"
+    },
+    {
+      "id": "breakdown-FEAT-03",
+      "agent": "product-spec",
+      "input": {
+        "mode": "feature-breakdown",
+        "feature_id": "FEAT-03",
+        "feature": "borrowing-request-system",
+        "feature_name": "Borrowing Request System",
+        "prd_file": "docs/01-prd/prd-v1.0.md"
+      },
+      "dependencies": [],
+      "priority": 3,
+      "completed_at": "2026-02-15T17:25:03.466860"
     }
   ]
 }
