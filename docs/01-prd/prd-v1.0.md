@@ -1,4 +1,6 @@
-# Book Club Companion - Product Requirements Document
+Looking at the user idea document for iteration 0, I'll create an initial Product Requirements Document.
+
+# BookClub Buddy - Product Requirements Document
 
 **Version**: 1.0  
 **Date**: December 19, 2024  
@@ -8,127 +10,147 @@
 
 ## Vision
 
-Book Club Companion is a simple, focused application that helps small book clubs organize their reading selections and track their reading history. Instead of juggling group chats, emails, and scattered notes, book club members have one dedicated place to suggest books, vote on what to read next, and maintain a shared record of their club's reading journey.
+BookClub Buddy is a simple, focused application that helps book clubs manage their reading selection process democratically and efficiently. Instead of lengthy discussions or one person always choosing, groups can collect book suggestions from all members and vote on what to read next.
 
-The application eliminates the common friction points in book club organization: forgotten suggestions, unclear voting processes, and lost track of what the group has already read. It's designed specifically for intimate book clubs of 3-12 members who want to spend their time discussing books, not managing logistics.
+The application eliminates the common friction points in book club organization: forgotten suggestions, unclear voting processes, and lack of historical tracking. By providing a clear, structured way to suggest and select books, BookClub Buddy helps book clubs spend less time on logistics and more time discussing great literature.
 
 ---
 
 ## Problem Statement
 
-Small book clubs struggle with basic organization tasks that detract from their core purpose of reading and discussing books together. Members suggest books through scattered channels (text messages, emails, casual conversation), making it hard to collect and compare all options. Voting on the next book is often informal and unclear, leading to confusion about what was actually decided. Over time, clubs lose track of their reading history, missing opportunities to reference past discussions or avoid re-reading recent selections.
-
-These organizational pain points create unnecessary friction that can derail book clubs or make them less enjoyable for members who just want to focus on reading together.
+Book clubs struggle with decision-making around book selection. Common issues include: suggestions getting lost in group chats, difficulty tracking what books have been read previously, unclear voting processes that lead to the same few people always choosing, and no central place to see the club's reading history. This leads to frustration, repeated book selections, and reduced member engagement.
 
 ---
 
 ## Target Users
 
-- **Primary**: Active members of small book clubs (3-12 people) who meet regularly and want better organization tools
-- **Secondary**: Book club organizers/hosts who currently manage suggestions and decisions manually
+- **Primary**: Book club organizers (3-15 person clubs) who currently manage suggestions via text, email, or informal discussion and want a simple digital solution
+- **Secondary**: Book club members who want an easy way to suggest books and participate in selection without the pressure of verbal discussion
 
 ---
 
 ## Core Features
 
-### Feature 1: Book Suggestions
+### Feature 1: Group Management
 
-**Purpose**: Centralized collection of member book suggestions with essential details
-
-**User Stories**:
-- As a book club member, I want to suggest books for consideration so that the group can see all options in one place
-- As a book club member, I want to see who suggested each book so that I can ask questions or discuss the suggestion
-- As a book club member, I want to include why I'm suggesting a book so that others understand my reasoning
-
-**Acceptance Criteria**:
-- Members can submit suggestions with title, author, and optional description (max 500 characters)
-- All current suggestions are visible to group members in one list
-- Submitter's name is shown with each suggestion
-- Members can delete their own suggestions before voting begins
-
----
-
-### Feature 3: Current Book Tracking
-
-**Purpose**: Clear visibility into what the book club is currently reading
+**Purpose**: Create and manage book club groups with member access
 
 **User Stories**:
-- As a book club member, I want to see what book we're currently reading so that there's no confusion about the selection
-- As a book club member, I want to see when we started the current book so that I can track our reading pace
-- As a book club organizer, I want to mark when we've finished a book so that it moves to our reading history
+- As a book club organizer, I want to create a private group for my club so that only our members can suggest and vote on books
+- As a book club organizer, I want to invite members via email or shareable link so they can easily join our group
+- As a group member, I want to see who else is in my book club so I know who's participating
 
 **Acceptance Criteria**:
-- Only one book can be "Currently Reading" at a time
-- Current book shows title, author, start date, and who suggested it originally
-- Group creator can mark current book as "Completed" with completion date
-- When marked complete, book automatically moves to reading history
-
----
-
-### Feature 4: Reading History
-
-**Purpose**: Persistent record of the book club's reading journey
-
-**User Stories**:
-- As a book club member, I want to see what books we've read so that I can reference past discussions or recommend books to others
-- As a book club member, I want to see when we read each book so that I can remember the timeline of our club
-- As a book club member, I want to avoid suggesting books we've recently read so that we don't duplicate recent selections
-
-**Acceptance Criteria**:
-- Past books show title, author, completion date, and original suggester
-- Books are listed in reverse chronological order (most recent first)
-- Reading history is visible to all group members
-- No limit on history length (permanent record)
-
----
-
-### Feature 5: Group Management
-
-**Purpose**: Simple creation and membership management for book club groups
-
-**User Stories**:
-- As a book club organizer, I want to create a group for my book club so that we have our own private space
-- As a book club organizer, I want to invite members to join so that everyone can participate
-- As a potential member, I want to join a group I've been invited to so that I can participate in suggestions and voting
-
-**Acceptance Criteria**:
-- Anyone can create a new book club group with a name
-- Group creator can generate invitation links to share with members
-- People can join groups via invitation links
+- Users can create groups with a name and optional description
+- Group creators can generate invite links that expire after 7 days
 - Group membership is visible to all members
-- Groups are private (only members can see content)
+- Groups are private by default (not discoverable by non-members)
+
+---
+
+### Feature 2: Book Suggestions
+
+**Purpose**: Allow members to submit book recommendations for group consideration
+
+**User Stories**:
+- As a book club member, I want to suggest a book with title, author, and why I think the group would enjoy it so others can consider it
+- As a book club member, I want to see all current suggestions in one place so I can review options before voting
+- As a book club member, I want to avoid suggesting books we've already read so we don't waste time on duplicates
+
+**Acceptance Criteria**:
+- Members can submit suggestions with title, author, and optional description (max 500 chars)
+- System prevents duplicate suggestions within the same group
+- All active suggestions are visible to group members
+- Suggestions show who submitted them and when
+
+---
+
+### Feature 3: Democratic Voting
+
+**Purpose**: Enable fair, transparent voting on book suggestions
+
+**User Stories**:
+- As a book club member, I want to upvote my favorite suggestions so the group can see which books have the most support
+- As a book club member, I want to see vote counts on all suggestions so I can gauge group interest
+- As a book club member, I want to change my votes before the selection is finalized so I can adjust based on new suggestions
+
+**Acceptance Criteria**:
+- Members can upvote any number of suggestions (no downvoting)
+- Vote counts are visible to all members
+- Members can change/remove their votes until selection is finalized
+- Voting is anonymous (counts visible, but not who voted for what)
+
+---
+
+### Feature 4: Book Selection & History
+
+**Purpose**: Finalize book choices and maintain reading history
+
+**User Stories**:
+- As a book club organizer, I want to promote the winning suggestion to "Current Book" so everyone knows what we're reading
+- As a book club member, I want to see our reading history so I can remember past books and avoid re-suggestions
+- As a book club member, I want to move finished books to "Past Books" so we can track our progress over time
+
+**Acceptance Criteria**:
+- Group organizers can promote any suggestion to "Current Book" status
+- Only one book can be "Current" at a time
+- Completed books move to "Past Books" with completion date
+- Past books are visible to all members with dates read
+- When a book is selected, all other suggestions are archived
+
+---
+
+### Feature 5: Simple Notifications
+
+**Purpose**: Keep members informed of group activity without spam
+
+**User Stories**:
+- As a book club member, I want to be notified when new books are suggested so I can vote promptly
+- As a book club member, I want to know when a book is selected so I can start reading
+- As a book club member, I want to control my notification preferences so I don't get overwhelmed
+
+**Acceptance Criteria**:
+- Email notifications for: new book selected, new suggestion added (daily digest)
+- In-app notifications for all activity
+- Users can disable email notifications but keep in-app ones
+- Notifications include group name and relevant book details
 
 ---
 
 ## Success Metrics
 
-- **Active Groups**: Number of groups with activity in past 30 days (target: 100 groups by month 6)
-- **Suggestion-to-Selection Rate**: Percentage of suggestions that receive at least one vote (target: >70%)
-- **Reading Completion Rate**: Percentage of "Currently Reading" books that get marked as completed (target: >80%)
-- **Member Retention**: Percentage of members who participate after joining (vote or suggest) within first month (target: >60%)
+- **Group Engagement**: % of members who vote on suggestions (target: >70%)
+- **Suggestion Diversity**: Average number of different members contributing suggestions per selection cycle (target: >40% of group)
+- **Decision Speed**: Average time from first suggestion to book selection (target: <7 days)
+- **User Retention**: Groups still active after 3 months (target: >60%)
 
 ---
 
 ## Out of Scope (V1)
 
 To maintain focus and ship quickly, the following are intentionally excluded:
-- Discussion forums or chat features (groups can use existing tools)
-- Book ratings or reviews (focus on selection, not evaluation)
-- Reading progress tracking for individuals (group-level tracking only)
-- Integration with Goodreads or other book services
-- Advanced admin features (multiple admins, member roles)
-- Mobile app (web-first, mobile-responsive)
+- Discussion/commenting on suggestions (use existing group chat)
+- Reading progress tracking or reviews
+- Integration with Goodreads, Amazon, or other book services
+- Advanced admin roles (only creator can manage group)
 - Book recommendation algorithms or suggestions
+- Mobile app (web-first approach)
+- Calendar integration for meeting scheduling
 
 ---
 
 ## Technical Considerations
 
-- Web application, mobile-responsive design for phone and tablet use
-- Must work reliably on basic mobile browsers (many book club members use phones)
-- Simple email notifications for key events (new suggestions, voting completed)
-- No real-time features required (occasional refresh is acceptable)
-- Support for groups up to 25 members (though target is 3-12)
+- Web application optimized for mobile browsers
+- Email delivery system for notifications
+- Simple user authentication (email-based)
+- Database design to handle groups, suggestions, votes, and history
+- Responsive design for desktop and mobile use
 
 ---
 
+## Timeline & Prioritization
+
+**Phase 1 (MVP)**: Group creation, suggestions, voting, selection - 6-8 weeks  
+**Phase 2**: Enhanced notifications, user profiles, suggestion improvements - 4-6 weeks  
+**Phase 3**: Analytics dashboard, advanced group management - 4-6 weeks
