@@ -26,7 +26,7 @@ jobs:
       
       - name: Install dependencies
         run: |
-          pip install anthropic==0.39.0
+          pip install anthropic
       
       - name: Find next task
         id: next-task
