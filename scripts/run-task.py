@@ -61,20 +61,20 @@ def call_agent(agent, prompt):
 def extract_features_from_prd(prd_path):
     """Extract feature names from PRD markdown file."""
     features = []
-
+    
     with open(prd_path, 'r') as f:
         content = f.read()
-
+    
     # Look for "### Feature N: Name" patterns
     import re
     pattern = r'###\s+Feature\s+\d+:\s+(.+)'
     matches = re.findall(pattern, content)
-
+    
     for match in matches:
         # Clean up the feature name
         feature_name = match.strip()
         features.append(feature_name)
-
+    
     return features
 
 def get_output_path(agent, task_input):
@@ -160,11 +160,35 @@ def create_next_tasks(completed_task, output_path):
     agent = completed_task['agent']
     next_tasks = []
     
-    # Simple logic - in production this would be more sophisticated
     if agent == 'product-spec' and completed_task['input'].get('iteration', 0) == 0:
-        # After initial PRD, start feature refinement
-        # This is simplified - in reality, parse PRD for features
-        print("📋 PRD complete. Manual step: Add feature refinement tasks")
+        # Check if PRD is approved before extracting features
+        prd_dir = os.path.dirname(output_path)
+        approval_file = os.path.join(prd_dir, '.approved')
+        
+        if os.path.exists(approval_file):
+            # PRD approved, extract features and create refinement tasks
+            features = extract_features_from_prd(output_path)
+            
+            if features:
+                print(f"📋 Found {len(features)} features in PRD")
+                for i, feature in enumerate(features, 1):
+                    feature_slug = feature.lower().replace(' ', '-').replace(':', '')
+                    next_tasks.append({
+                        'id': f'questions-{feature_slug}-iter-1',
+                        'agent': 'tech-lead',
+                        'input': {
+                            'feature': feature_slug,
+                            'iteration': 1,
+                            'prd_file': output_path
+                        },
+                        'dependencies': [],
+                        'priority': i
+                    })
+                    print(f"  - {feature}")
+            else:
+                print("⚠️  No features found in PRD")
+        else:
+            print("📋 PRD created. Review it, then create docs/01-prd/.approved to continue")
     
     elif agent == 'tech-lead':
         # Check if "READY FOR IMPLEMENTATION"
