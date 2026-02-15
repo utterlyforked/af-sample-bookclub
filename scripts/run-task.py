@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-Run a single task: load agent prompt, call LLM, validate, update state
+Run a single task: load agent prompt, call LLM, save output, write completion sentinel.
+Parallel-safe: reads task from TASK_JSON env var, writes only to task-specific files.
 """
 import json
 import os
@@ -9,49 +10,17 @@ import argparse
 from pathlib import Path
 from anthropic import Anthropic
 
-MAX_REFINEMENT_ITERATIONS = 5
-
-
-def get_latest_feature_docs():
-    """Return the most up-to-date doc path for each feature."""
-    features_dir = Path('docs/02-features')
-    refinement_dir = Path('docs/03-refinement')
-    docs = []
-
-    for feature_file in sorted(features_dir.glob('*.md')):
-        refined_dir = refinement_dir / feature_file.stem
-        if refined_dir.exists():
-            updates = sorted(refined_dir.glob('updated-v1.*.md'))
-            if updates:
-                docs.append(str(updates[-1]))
-                continue
-        docs.append(str(feature_file))
-
-    return docs
-
-
-def load_task(task_id):
-    """Load task from pending queue."""
-    with open('docs/.state/pending-tasks.json') as f:
-        pending = json.load(f)
-    
-    task = next((t for t in pending['tasks'] if t['id'] == task_id), None)
-    if not task:
-        raise ValueError(f"Task {task_id} not found")
-    
-    return task
 
 def load_agent_prompt(agent, task_input):
     """Load agent prompt and inject task input."""
     prompt_file = Path(f'agents/{agent}/prompt.md')
-
     if not prompt_file.exists():
         raise FileNotFoundError(f"Agent prompt not found: {prompt_file}")
 
     with open(prompt_file) as f:
         prompt = f.read()
 
-    # Inject referenced file contents before the task input JSON
+    # Inject referenced file contents
     file_keys = {
         'user_idea_file': 'User Idea',
         'prd_file': 'PRD',
@@ -68,7 +37,7 @@ def load_agent_prompt(agent, task_input):
             else:
                 raise FileNotFoundError(f"Input file not found for '{key}': {path}")
 
-    # Inject a list of feature documents (used by foundation-architect)
+    # Inject list of feature documents (foundation-architect)
     for i, doc_path in enumerate(task_input.get('feature_docs', []), 1):
         path = Path(doc_path)
         if path.exists():
@@ -77,344 +46,139 @@ def load_agent_prompt(agent, task_input):
         else:
             raise FileNotFoundError(f"Feature doc not found: {path}")
 
-    # Always inject tech stack context if available
+    # Always inject tech stack context
     tech_stack = Path('context/tech-stack-standards.md')
     if tech_stack.exists():
         prompt += "\n\n## Tech Stack Standards\n\n"
         prompt += tech_stack.read_text()
 
-    # Add task input metadata
-    prompt += "\n\n## Task Input\n\n"
-    prompt += "```json\n"
+    prompt += "\n\n## Task Input\n\n```json\n"
     prompt += json.dumps(task_input, indent=2)
     prompt += "\n```\n"
 
     return prompt
+
 
 def call_agent(agent, prompt):
     """Call LLM with agent prompt."""
     api_key = os.environ.get('ANTHROPIC_API_KEY')
     if not api_key:
         raise ValueError("ANTHROPIC_API_KEY not set")
-    
+
     client = Anthropic(api_key=api_key)
-    
     print(f"🤖 Calling {agent} agent...")
-    
+
     response = client.messages.create(
         model="claude-sonnet-4-20250514",
         max_tokens=8000,
-        messages=[
-            {"role": "user", "content": prompt}
-        ]
+        messages=[{"role": "user", "content": prompt}]
     )
-    
+
     return response.content[0].text
 
-def extract_features_from_prd(prd_path):
-    """Extract feature names from PRD markdown file."""
-    features = []
-    
-    with open(prd_path, 'r') as f:
-        content = f.read()
-    
-    # Look for "### Feature N: Name" patterns
-    import re
-    pattern = r'###\s+Feature\s+\d+:\s+(.+)'
-    matches = re.findall(pattern, content)
-    
-    for match in matches:
-        # Clean up the feature name
-        feature_name = match.strip()
-        features.append(feature_name)
-    
-    return features
 
 def get_output_path(agent, task_input):
     """Determine where to save agent output."""
-    
     if agent == 'product-spec':
         mode = task_input.get('mode', 'initial')
-        
         if mode == 'feature-breakdown':
-            # Breaking down a feature into its own document
             feature_id = task_input.get('feature_id', 'FEAT-XX')
             feature_slug = task_input.get('feature', 'unknown')
             return f'docs/02-features/{feature_id}-{feature_slug}.md'
-        
         elif task_input.get('iteration', 0) == 0:
-            # Initial PRD creation
             return 'docs/01-prd/prd-v1.0.md'
-        
         else:
-            # Feature refinement (answering tech-lead questions)
             feature_id = task_input.get('feature_id', 'FEAT-XX')
             feature_slug = task_input.get('feature', 'unknown')
             iteration = task_input.get('iteration')
             return f'docs/03-refinement/{feature_id}-{feature_slug}/updated-v1.{iteration}.md'
-    
+
     elif agent == 'tech-lead':
         feature_id = task_input.get('feature_id', 'FEAT-XX')
         feature_slug = task_input.get('feature', 'unknown')
         iteration = task_input.get('iteration', 1)
         return f'docs/03-refinement/{feature_id}-{feature_slug}/questions-iter-{iteration}.md'
-    
+
     elif agent == 'foundation-architect':
         return 'docs/04-foundation/foundation-analysis.md'
-    
+
     elif agent == 'engineering-spec':
-        spec_type = task_input.get('type', 'feature')
-        if spec_type == 'foundation':
-            return 'docs/05-specs/foundation-spec.md'
-        else:
-            feature_id = task_input.get('feature_id', 'FEAT-XX')
-            feature_slug = task_input.get('feature', 'unknown')
-            return f'docs/05-specs/{feature_id}-{feature_slug}-spec.md'
-    
+        feature_id = task_input.get('feature_id', 'FEAT-XX')
+        feature_slug = task_input.get('feature', 'unknown')
+        return f'docs/05-specs/{feature_id}-{feature_slug}-spec.md'
+
     return f'docs/output/{agent}-output.md'
+
 
 def save_output(output_path, content):
     """Save agent output to file."""
     output_file = Path(output_path)
     output_file.parent.mkdir(parents=True, exist_ok=True)
-    
     with open(output_file, 'w') as f:
         f.write(content)
-    
     print(f"📝 Saved output to {output_path}")
+
+
+def mark_complete(task_id):
+    """Write a sentinel file to mark this task done. Parallel-safe (no shared state)."""
+    sentinel = Path(f'docs/.state/completed/{task_id}.done')
+    sentinel.parent.mkdir(parents=True, exist_ok=True)
+    sentinel.touch()
+    print(f"✅ Task {task_id} marked complete")
+
 
 def run_judge(agent, output_path):
     """Run judge validation on agent output."""
     judge_dir = f'agents/judge-{agent}'
-    
     if not Path(judge_dir).exists():
         print(f"⚠️  No judge for {agent}, skipping validation")
         return {'result': 'PASS', 'score': 100, 'issues': []}
-    
-    # For now, simple pass-through
-    # In production, this would call another LLM to validate
     print(f"✅ Judge validation passed")
     return {'result': 'PASS', 'score': 95, 'issues': []}
 
-def mark_complete(task_id):
-    """Move task from pending to completed."""
-    with open('docs/.state/pending-tasks.json') as f:
-        pending = json.load(f)
-    
-    with open('docs/.state/completed-tasks.json') as f:
-        completed = json.load(f)
-    
-    # Find and move task
-    task = next((t for t in pending['tasks'] if t['id'] == task_id), None)
-    if task:
-        from datetime import datetime
-        task['completed_at'] = datetime.utcnow().isoformat()
-        
-        completed['tasks'].append(task)
-        pending['tasks'] = [t for t in pending['tasks'] if t['id'] != task_id]
-        
-        with open('docs/.state/pending-tasks.json', 'w') as f:
-            json.dump(pending, f, indent=2)
-        
-        with open('docs/.state/completed-tasks.json', 'w') as f:
-            json.dump(completed, f, indent=2)
-        
-        print(f"✅ Task {task_id} marked complete")
 
-def create_next_tasks(completed_task, output_path):
-    """Generate follow-on tasks based on what just completed."""
-    agent = completed_task['agent']
-    next_tasks = []
-    
-    if agent == 'product-spec':
-        mode = completed_task['input'].get('mode', 'initial')
-        
-        if mode == 'feature-breakdown':
-            # Feature document created - DON'T create tech-lead task yet
-            # Wait until ALL features are broken down (handled by find-next-task stage logic)
-            print(f"✅ Feature breakdown complete: {completed_task['input']['feature']}")
-        
-        elif completed_task['input'].get('iteration', 0) == 0:
-            # Initial PRD completed
-            print("📋 PRD created. Review it, then create docs/01-prd/.approved to continue")
-        
-        else:
-            # Feature refinement - answered tech-lead questions
-            feature_id = completed_task['input'].get('feature_id', 'FEAT-XX')
-            feature = completed_task['input']['feature']
-            iteration = completed_task['input']['iteration']
-            next_tasks.append({
-                'id': f'questions-{feature_id}-iter-{iteration + 1}',
-                'agent': 'tech-lead',
-                'input': {
-                    'feature_id': feature_id,
-                    'feature': feature,
-                    'iteration': iteration + 1,
-                    'feature_doc': output_path
-                },
-                'dependencies': [],
-                'priority': 1
-            })
-    
-    elif agent == 'tech-lead':
-        feature_id = completed_task['input'].get('feature_id', 'FEAT-XX')
-        feature = completed_task['input']['feature']
-        iteration = completed_task['input']['iteration']
-
-        with open(output_path) as f:
-            content = f.read()
-
-        if 'READY FOR IMPLEMENTATION' in content:
-            print(f"✅ {feature_id} ready for implementation")
-        elif iteration >= MAX_REFINEMENT_ITERATIONS:
-            print(f"⚠️  Max refinement iterations ({MAX_REFINEMENT_ITERATIONS}) reached for {feature_id}, marking ready")
-            with open(output_path, 'a') as f:
-                f.write(f"\n\n---\n\n**Status**: READY FOR IMPLEMENTATION\n\n*Note: Forced ready after {MAX_REFINEMENT_ITERATIONS} iterations.*\n")
-        else:
-            next_tasks.append({
-                'id': f'refine-{feature_id}-iter-{iteration}',
-                'agent': 'product-spec',
-                'input': {
-                    'feature_id': feature_id,
-                    'feature': feature,
-                    'iteration': iteration,
-                    'feature_doc': completed_task['input']['feature_doc'],
-                    'questions_file': output_path
-                },
-                'dependencies': [],
-                'priority': 1
-            })
-
-    elif agent == 'foundation-architect':
-        # Create engineering spec tasks for all features
-        registry_path = Path('docs/.state/feature-registry.json')
-        if not registry_path.exists():
-            print("⚠️  No feature registry, cannot create engineering spec tasks")
-        else:
-            with open(registry_path) as f:
-                registry = json.load(f)
-            feature_docs = get_latest_feature_docs()
-            for i, (feature_id, feature) in enumerate(registry.items(), 1):
-                feature_doc = next(
-                    (d for d in feature_docs if feature_id in d),
-                    f"docs/02-features/{feature_id}-{feature['slug']}.md"
-                )
-                next_tasks.append({
-                    'id': f'spec-{feature_id}',
-                    'agent': 'engineering-spec',
-                    'input': {
-                        'feature_id': feature_id,
-                        'feature': feature['slug'],
-                        'feature_doc': feature_doc,
-                        'foundation_doc': output_path
-                    },
-                    'dependencies': [],
-                    'priority': i
-                })
-            print(f"📋 Created {len(next_tasks)} engineering spec task(s)")
-
-    # Add new tasks to pending
-    if next_tasks:
-        with open('docs/.state/pending-tasks.json') as f:
-            pending = json.load(f)
-        
-        pending['tasks'].extend(next_tasks)
-        
-        with open('docs/.state/pending-tasks.json', 'w') as f:
-            json.dump(pending, f, indent=2)
-        
-        print(f"📋 Created {len(next_tasks)} follow-on task(s)")
-
-def run_task(task_id, agent):
+def run_task(task_id, agent, task_input):
     """Main task execution."""
-    
-    # Special case: feature extraction (not a real LLM agent)
-    if agent == 'feature-extractor':
-        print(f"\n{'='*60}")
-        print(f"Running task: {task_id}")
-        print(f"Agent: {agent} (extraction logic)")
-        print(f"{'='*60}\n")
-        
-        # Extract features from PRD
-        prd_path = 'docs/01-prd/prd-v1.0.md'
-        features = extract_features_from_prd(prd_path)
-        
-        if features:
-            print(f"📋 Found {len(features)} features in PRD")
-            
-            # Create tech-lead tasks for each feature
-            next_tasks = []
-            for i, feature in enumerate(features, 1):
-                feature_slug = feature.lower().replace(' ', '-').replace(':', '')
-                next_tasks.append({
-                    'id': f'questions-{feature_slug}-iter-1',
-                    'agent': 'tech-lead',
-                    'input': {
-                        'feature': feature_slug,
-                        'iteration': 1,
-                        'prd_file': prd_path
-                    },
-                    'dependencies': [],
-                    'priority': i
-                })
-                print(f"  - {feature}")
-            
-            # Add tasks to pending
-            with open('docs/.state/pending-tasks.json') as f:
-                pending = json.load(f)
-            
-            pending['tasks'].extend(next_tasks)
-            
-            with open('docs/.state/pending-tasks.json', 'w') as f:
-                json.dump(pending, f, indent=2)
-            
-            print(f"\n✅ Created {len(next_tasks)} tech-lead tasks")
-        else:
-            print("⚠️  No features found in PRD")
-        
-        return
-    
-    # Normal LLM agent execution
-    # Load task
-    task = load_task(task_id)
-    task_input = task.get('input', {})
-    
     print(f"\n{'='*60}")
     print(f"Running task: {task_id}")
     print(f"Agent: {agent}")
     print(f"{'='*60}\n")
-    
-    # Load agent prompt
+
     prompt = load_agent_prompt(agent, task_input)
-    
-    # Call agent
     output = call_agent(agent, prompt)
-    
-    # Determine output path
     output_path = get_output_path(agent, task_input)
-    
-    # Save output
     save_output(output_path, output)
-    
-    # Run judge
+
     judge_result = run_judge(agent, output_path)
-    
+
     if judge_result['result'] == 'PASS':
-        # Mark complete
         mark_complete(task_id)
-        
-        # Create next tasks
-        create_next_tasks(task, output_path)
-        
         print(f"\n✅ Task {task_id} completed successfully")
     else:
         print(f"\n❌ Task {task_id} failed validation")
         sys.exit(1)
 
+
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--task-id', required=True)
-    parser.add_argument('--agent', required=True)
-    args = parser.parse_args()
-    
-    run_task(args.task_id, args.agent)
+    # Task details are passed via TASK_JSON env var (set by the workflow matrix)
+    task_json = os.environ.get('TASK_JSON')
+    if not task_json:
+        # Fallback: legacy CLI args for backwards compatibility
+        parser = argparse.ArgumentParser()
+        parser.add_argument('--task-id', required=True)
+        parser.add_argument('--agent', required=True)
+        args = parser.parse_args()
+        # Try to load from pending-tasks.json if it still exists
+        try:
+            with open('docs/.state/pending-tasks.json') as f:
+                pending = json.load(f)
+            task = next((t for t in pending['tasks'] if t['id'] == args.task_id), None)
+            if not task:
+                raise ValueError(f"Task {args.task_id} not found in pending-tasks.json")
+            task_input = task.get('input', {})
+        except FileNotFoundError:
+            raise ValueError("No TASK_JSON env var and no pending-tasks.json found")
+        run_task(args.task_id, args.agent, task_input)
+    else:
+        task = json.loads(task_json)
+        run_task(task['id'], task['agent'], task.get('input', {}))
