@@ -6,9 +6,10 @@ Parallel-safe: reads task from TASK_JSON env var, writes only to task-specific f
 import json
 import os
 import sys
+import time
 import argparse
 from pathlib import Path
-from anthropic import Anthropic
+from anthropic import Anthropic, RateLimitError, APIStatusError
 
 
 def load_agent_prompt(agent, task_input):
@@ -60,7 +61,7 @@ def load_agent_prompt(agent, task_input):
 
 
 def call_agent(agent, prompt):
-    """Call LLM with agent prompt."""
+    """Call LLM with agent prompt. Retries on rate limit errors with exponential backoff."""
     api_key = os.environ.get('ANTHROPIC_API_KEY')
     if not api_key:
         raise ValueError("ANTHROPIC_API_KEY not set")
@@ -68,12 +69,34 @@ def call_agent(agent, prompt):
     client = Anthropic(api_key=api_key)
     print(f"🤖 Calling {agent} agent...")
 
+    delays = [60, 120, 240]  # seconds between retries
+    for attempt, delay in enumerate(delays, 1):
+        try:
+            response = client.messages.create(
+                model="claude-sonnet-4-5-20250929",
+                max_tokens=8000,
+                messages=[{"role": "user", "content": prompt}]
+            )
+            return response.content[0].text
+        except RateLimitError as e:
+            if attempt <= len(delays):
+                print(f"⏳ Rate limit hit (attempt {attempt}/{len(delays)}), waiting {delay}s...")
+                time.sleep(delay)
+            else:
+                raise
+        except APIStatusError as e:
+            if e.status_code == 529 and attempt <= len(delays):  # API overloaded
+                print(f"⏳ API overloaded (attempt {attempt}/{len(delays)}), waiting {delay}s...")
+                time.sleep(delay)
+            else:
+                raise
+
+    # Final attempt after all retries
     response = client.messages.create(
-        model="claude-sonnet-4-20250514",
+        model="claude-sonnet-4-5-20250929",
         max_tokens=8000,
         messages=[{"role": "user", "content": prompt}]
     )
-
     return response.content[0].text
 
 

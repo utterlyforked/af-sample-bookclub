@@ -50,6 +50,7 @@ jobs:
 
     strategy:
       fail-fast: false   # don't cancel other tasks if one fails
+      max-parallel: 2    # stay within Anthropic rate limits
       matrix:
         task: ${{ fromJSON(needs.find-tasks.outputs.tasks) }}
 
