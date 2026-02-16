@@ -104,6 +104,14 @@ Optionally customize agent behaviors in `agents/*/prompt.md`:
 - QA 
 - APP Sec
 
+## Reset 
+
+```bash
+  git rm -r docs/01-prd docs/02-features docs/03-refinement docs/04-foundation docs/05-specs docs/.state
+  git commit -m "reset: clear all generated docs and pipeline state"
+  git push
+```
+  
 ## How It Works
 
 See [INTRODUCTION.md](./INTRODUCTION.md) for the full story.
@@ -113,10 +121,10 @@ See [INTRODUCTION.md](./INTRODUCTION.md) for the full story.
 1. **State machine** (`docs/.state/*.json`) tracks what needs to happen
 2. **Orchestrator** (`scripts/orchestrate.py`) finds next task and runs it
 3. **Agents** (`agents/*/`) generate artifacts (PRD, questions, specs, code)
-4. **Judges** (`agents/judge-*/`) validate quality before human review
-5. **GitHub Actions** (`.github/workflows/`) automates it all
+4. **GitHub Actions** (`.github/workflows/`) automates it all
 
 Humans review at strategic decision points. Agents handle iteration and implementation.
+
 
 ## Requirements
 
