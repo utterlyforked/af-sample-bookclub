@@ -12,6 +12,7 @@
 - Convention over configuration
 - Optimize for reading code, not writing it
 - Security by default
+- Everything in a container so it can be ran locally in docker and then used in production with k8s or similar
 
 ## Core Stack
 
