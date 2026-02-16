@@ -406,8 +406,8 @@ Your job is **execution**, not **design**. The design is done. Now build it.
 
 - **Tech Stack**: `context/tech-stack-standards.md`
 - **Spec to Implement**: `IMPLEMENTATION_SPEC.md` (in your branch)
-- **Foundation Spec**: `docs/04-specs/foundation-spec.md`
-- **Other Features**: `docs/04-specs/*.md`
+- **Foundation Spec**: `docs/05-specs/foundation-spec.md`
+- **Other Features**: `docs/05-specs/*.md`
 - **State Machine**: Don't touch `docs/.state/` (orchestrator manages)
 
 **Questions?** Add comments in code and flag in PR. Don't guess—implement what makes sense and let humans decide.
