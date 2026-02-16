@@ -84,6 +84,7 @@ pipeline:
     input:
       type: feature
       feature_doc: "{{latest_feature_doc}}"
+      tech_lead_review: "{{latest_questions_file}}"
       foundation_spec: docs/05-specs/foundation-spec.md
       appsec_doc: docs/04-foundation/appsec-review.md
       qa_doc: docs/04-foundation/qa-review.md

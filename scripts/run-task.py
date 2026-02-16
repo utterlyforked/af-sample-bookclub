@@ -27,15 +27,17 @@ def load_agent_prompt(agent, task_input):
         'prd_file': 'PRD',
         'feature_doc': 'Feature Document',
         'questions_file': 'Tech Lead Questions',
+        'tech_lead_review': 'Tech Lead Review (READY FOR IMPLEMENTATION)',
         'foundation_doc': 'Foundation Analysis',
     }
+    optional_keys = {'tech_lead_review'}
     for key, label in file_keys.items():
         if key in task_input:
             path = Path(task_input[key])
             if path.exists():
                 prompt += f"\n\n## {label}\n\n"
                 prompt += path.read_text()
-            else:
+            elif key not in optional_keys:
                 raise FileNotFoundError(f"Input file not found for '{key}': {path}")
 
     # Inject list of feature documents (foundation-architect)
@@ -70,34 +72,56 @@ def call_agent(agent, prompt):
     print(f"🤖 Calling {agent} agent...")
 
     delays = [60, 120, 240]  # seconds between retries
-    for attempt, delay in enumerate(delays, 1):
-        try:
-            response = client.messages.create(
-                model="claude-sonnet-4-5-20250929",
-                max_tokens=8000,
-                messages=[{"role": "user", "content": prompt}]
-            )
-            return response.content[0].text
-        except RateLimitError as e:
-            if attempt <= len(delays):
-                print(f"⏳ Rate limit hit (attempt {attempt}/{len(delays)}), waiting {delay}s...")
-                time.sleep(delay)
-            else:
-                raise
-        except APIStatusError as e:
-            if e.status_code == 529 and attempt <= len(delays):  # API overloaded
-                print(f"⏳ API overloaded (attempt {attempt}/{len(delays)}), waiting {delay}s...")
-                time.sleep(delay)
-            else:
-                raise
 
-    # Final attempt after all retries
-    response = client.messages.create(
-        model="claude-sonnet-4-5-20250929",
-        max_tokens=8000,
-        messages=[{"role": "user", "content": prompt}]
-    )
-    return response.content[0].text
+    def make_request(messages):
+        for attempt, delay in enumerate(delays, 1):
+            try:
+                return client.messages.create(
+                    model="claude-sonnet-4-5-20250929",
+                    max_tokens=16000,
+                    messages=messages
+                )
+            except RateLimitError:
+                if attempt <= len(delays):
+                    print(f"⏳ Rate limit hit (attempt {attempt}/{len(delays)}), waiting {delay}s...")
+                    time.sleep(delay)
+                else:
+                    raise
+            except APIStatusError as e:
+                if e.status_code == 529 and attempt <= len(delays):
+                    print(f"⏳ API overloaded (attempt {attempt}/{len(delays)}), waiting {delay}s...")
+                    time.sleep(delay)
+                else:
+                    raise
+        # Final attempt
+        return client.messages.create(
+            model="claude-sonnet-4-5-20250929",
+            max_tokens=16000,
+            messages=messages
+        )
+
+    messages = [{"role": "user", "content": prompt}]
+    full_output = ""
+    max_continuations = 5
+
+    for continuation in range(max_continuations + 1):
+        response = make_request(messages)
+        chunk = response.content[0].text
+        full_output += chunk
+
+        if response.stop_reason != "max_tokens":
+            break
+
+        print(f"⚠️  Output truncated, continuing... (part {continuation + 2})")
+        # Add the partial response as an assistant turn, then ask to continue
+        messages = messages + [
+            {"role": "assistant", "content": chunk},
+            {"role": "user", "content": "Continue exactly where you left off. Do not repeat any content already written."}
+        ]
+    else:
+        print(f"⚠️  Reached max continuations ({max_continuations}), output may be incomplete")
+
+    return full_output
 
 
 def get_output_path(agent, task_input, task_output_path=None):

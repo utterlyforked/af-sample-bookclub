@@ -43,6 +43,19 @@ Translate approved requirements into unambiguous technical contracts that an eng
 
 ---
 
+## Instructions for Implementation
+
+This document is a technical contract. Your job is to implement everything described here:
+- Create all database tables and migrations defined in the Data Model section
+- Implement all API endpoints defined in the API Endpoints section
+- Enforce all business rules, validation rules, and authorization policies exactly as specified
+- Write tests that verify each acceptance criterion
+
+Do not add features, fields, or behaviours not listed in this document.
+Do not omit anything listed in this document.
+
+---
+
 ## Overview
 
 One paragraph: what this component does and its boundaries.
@@ -164,11 +177,12 @@ For features: what entities it owns, what it reads from foundation/other feature
 
 ---
 
-## Out of Scope
+## Not In This Document
 
-- [Anything explicitly excluded from this spec]
-- Test plans (owned by QA spec)
-- Implementation code (engineer's responsibility)
+This document does not contain:
+- Implementation code — write the code yourself based on the contracts above
+- Test case definitions — see the QA spec for test plans
+- [Anything else explicitly excluded, e.g. "Email notifications — future feature"]
 ```
 
 ---

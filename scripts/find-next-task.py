@@ -45,12 +45,25 @@ def get_latest_feature_doc(feature_id, feature_slug):
     return f'docs/02-features/{stem}.md'
 
 
+def get_latest_questions_file(feature_id, feature_slug):
+    """Return the highest-iteration tech-lead questions file for a feature, or None if none exist."""
+    stem = f'{feature_id}-{feature_slug}'
+    refined_dir = Path(f'docs/03-refinement/{stem}')
+    if refined_dir.exists():
+        questions = sorted(refined_dir.glob('questions-iter-*.md'))
+        if questions:
+            return str(questions[-1])
+    return None
+
+
 def resolve_value(value, **kwargs):
     """Resolve a single value — handles special tokens and {pattern} substitution."""
     if value == '{{latest_feature_docs}}':
         return get_latest_feature_docs()
     if value == '{{latest_feature_doc}}':
         return get_latest_feature_doc(kwargs['feature_id'], kwargs['feature_slug'])
+    if value == '{{latest_questions_file}}':
+        return get_latest_questions_file(kwargs['feature_id'], kwargs['feature_slug'])
     if isinstance(value, str):
         return value.format(**kwargs)
     return value
@@ -58,10 +71,13 @@ def resolve_value(value, **kwargs):
 
 def resolve_input(input_dict, **kwargs):
     """Resolve all values in an input dict, skipping optional files that don't exist yet."""
-    optional_keys = {'appsec_doc', 'qa_doc', 'foundation_spec'}
+    optional_keys = {'appsec_doc', 'qa_doc', 'foundation_spec', 'tech_lead_review'}
     resolved = {}
     for key, value in input_dict.items():
         resolved_value = resolve_value(value, **kwargs)
+        # Drop keys that resolved to None (e.g. {{latest_questions_file}} with no refinement)
+        if resolved_value is None:
+            continue
         if key in optional_keys and isinstance(resolved_value, str):
             if not Path(resolved_value).exists():
                 continue
