@@ -1,0 +1,423 @@
+# Cross-Spec Consistency Review
+
+**Date**: 2025-01-26
+**Specs reviewed**: foundation-spec, FEAT-01-tool-listings-spec, FEAT-02-borrowing-requests-spec, FEAT-03-user-profiles-&-trust-system-spec, FEAT-04-borrow-tracking-&-returns-spec, FEAT-05-community-&-location-based-discovery-spec
+**Status**: BLOCKERS FOUND
+
+---
+
+## Summary
+
+Found 12 blocker issues and 3 warnings that would cause build failures, runtime errors, or data corruption if implemented as written. Primary conflicts involve entity naming mismatches, status enum value contradictions, primary key type inconsistencies, and missing entity definitions.
+
+---
+
+## BLOCKER Issues
+
+### [B1] Tool Status Enum Values Mismatch
+
+**Specs affected**: Foundation, FEAT-01, FEAT-04, FEAT-05
+
+**The conflict**:
+- Foundation spec defines: `Tool.status` enum as `'Draft', 'Published', 'Borrowed', 'Unavailable'`
+- FEAT-01 spec defines: `Tool.status` enum as `'Available', 'Currently Borrowed', 'Temporarily Unavailable'`
+- FEAT-04 references: Tool status values `'Available'`, `'NeedsRepair'` (page 9: "updates Tool.status to NeedsRepair")
+- FEAT-05 references: Tool status value `'published'` (lowercase, page 15: "when tool status transitions to 'published'")
+
+**Example**:
+```
+Foundation: status | enum | not null, default 'Draft' | Values: 'Draft', 'Published', 'Borrowed', 'Unavailable'
+FEAT-01: status | VARCHAR(30) | not null, default 'Available' | Enum: 'Available', 'Currently Borrowed', 'Temporarily Unavailable'
+FEAT-04: "If condition=HasIssues and affectsUsability=true, updates Tool.status to NeedsRepair"
+```
+
+**Fix**: Foundation spec must be authoritative. Update FEAT-01 to use Foundation's enum values exactly:
+- `'Available'` → `'Published'`
+- `'Currently Borrowed'` → `'Borrowed'`
+- `'Temporarily Unavailable'` → `'Unavailable'`
+- Add `'Draft'` as initial state
+- Update FEAT-04 to use `'Unavailable'` instead of `'NeedsRepair'`
+- Update FEAT-05 to use `'Published'` (capital P) consistently
+
+---
+
+### [B2] BorrowRequest Status Enum Values Mismatch
+
+**Specs affected**: Foundation, FEAT-02, FEAT-04
+
+**The conflict**:
+- Foundation spec defines: `BorrowRequest.status` enum as `'Pending', 'Approved', 'Declined', 'Cancelled', 'Withdrawn', 'PickedUp', 'Returned', 'Completed'`
+- FEAT-02 spec defines: `BorrowRequest.status` (BorrowRequestStatus) as `'Pending', 'Approved', 'Declined', 'Cancelled', 'Withdrawn', 'PickedUp', 'Returned', 'Completed'` ✓ (matches)
+- FEAT-04 spec defines: `Borrow.status` as `'Active', 'PendingReturnConfirmation', 'Completed', 'Cancelled'`
+
+**Example**:
+```
+Foundation BorrowRequest: 'Pending', 'Approved', 'Declined', 'Cancelled', 'Withdrawn', 'PickedUp', 'Returned', 'Completed'
+FEAT-04 Borrow: 'Active', 'PendingReturnConfirmation', 'Completed', 'Cancelled'
+```
+
+**Fix**: FEAT-04 introduces a separate `Borrow` entity that duplicates `BorrowRequest` with different status values. This creates a fundamental data model conflict. Options:
+1. **Recommended**: Remove FEAT-04's `Borrow` entity entirely and use Foundation's `BorrowRequest` entity with its existing status values. Map FEAT-04's statuses as follows:
+   - `Active` → `PickedUp`
+   - `PendingReturnConfirmation` → `Returned`
+   - Keep `Completed` and `Cancelled` as-is
+2. **Alternative**: Keep FEAT-04's `Borrow` as a separate entity but clarify it's a view/aggregate over `BorrowRequest` (not a separate table)
+
+---
+
+### [B3] Missing Borrow Entity Definition in Foundation
+
+**Specs affected**: Foundation, FEAT-04
+
+**The conflict**:
+- FEAT-04 defines a `Borrow` entity with fields: `borrowId`, `borrowRequestId` (FK to BorrowRequest), `toolId`, `borrowerId`, `ownerId`, status, dates
+- Foundation spec defines `BorrowRequest` but no `Borrow` entity
+- FEAT-04 states it "owns the Borrow, ExtensionRequest, ReturnConfirmation, BorrowNote, BorrowReminder" entities
+- But FEAT-04's Borrow.borrowRequestId references Foundation's BorrowRequest in a 1:1 relationship with unique constraint
+
+**Example**:
+```
+FEAT-04 Borrow table:
+| borrowRequestId | UUID | FK to BorrowRequest, not null, unique | Links to approved request from FEAT-02 |
+
+Foundation: No Borrow entity defined, only BorrowRequest
+```
+
+**Fix**: Either:
+1. **Recommended**: Eliminate FEAT-04's `Borrow` entity entirely. Use Foundation's `BorrowRequest` entity directly and add FEAT-04's fields (returnMarkedDate, returnCondition, ownerTimezone) to the `BorrowRequest` entity in Foundation
+2. **Alternative**: Add `Borrow` entity definition to Foundation spec and clarify the 1:1 relationship with `BorrowRequest` (seems redundant)
+
+---
+
+### [B4] Primary Key Type Inconsistency
+
+**Specs affected**: Foundation, FEAT-05
+
+**The conflict**:
+- Foundation spec uses UUID for all primary keys: `User.id | UUID`, `Tool.id | UUID`, `BorrowRequest.id | UUID`
+- FEAT-05 spec uses integer for primary keys: `UserFollow.id | integer | PK, auto-increment`, `ActivityEvent.id | integer | PK, auto-increment`
+
+**Example**:
+```
+Foundation User: id | UUID | PK, not null | Generated by Identity framework
+FEAT-05 UserFollow: id | integer | PK, auto-increment, not null | Generated on insert
+```
+
+**Fix**: Update FEAT-05 to use UUID primary keys consistently:
+- `UserFollow.id` → UUID (remove auto-increment)
+- `ActivityEvent.id` → UUID (remove auto-increment)
+- Update all FK references accordingly
+
+---
+
+### [B5] Missing Tool Category Definition
+
+**Specs affected**: Foundation, FEAT-01
+
+**The conflict**:
+- Foundation spec defines: `Tool.category` as enum with values `'Power Tools', 'Hand Tools', 'Lawn & Garden', 'Ladders & Scaffolding', 'Plumbing', 'Electrical', 'Automotive', 'Other'`
+- FEAT-01 spec defines a separate `ToolCategory` entity table with fields `id (UUID), name, slug, display_order` and seed data: `'Power Tools', 'Hand Tools', 'Gardening', 'Ladders & Access', 'Automotive', 'Specialty Equipment'`
+
+**Example**:
+```
+Foundation Tool.category: enum | not null | Values: 'Power Tools', 'Hand Tools', 'Lawn & Garden', 'Ladders & Scaffolding', 'Plumbing', 'Electrical', 'Automotive', 'Other'
+
+FEAT-01 Tool.category_id: UUID | FK → ToolCategory, not null
+FEAT-01 ToolCategory seed: 'Power Tools', 'Hand Tools', 'Gardening', 'Ladders & Access', 'Automotive', 'Specialty Equipment'
+```
+
+**Fix**: Choose one approach:
+1. **Recommended**: Use Foundation's enum approach. Remove FEAT-01's `ToolCategory` table. Align the category values (Foundation has 8, FEAT-01 has 6 with different names)
+2. **Alternative**: Move `ToolCategory` table definition to Foundation spec and remove enum from `Tool.category`. Update FEAT-01's Tool model to use `category_id UUID FK` instead of enum
+
+Must also reconcile category name differences:
+- `'Lawn & Garden'` (Foundation) vs `'Gardening'` (FEAT-01)
+- `'Ladders & Scaffolding'` (Foundation) vs `'Ladders & Access'` (FEAT-01)
+- Foundation includes `'Plumbing', 'Electrical', 'Other'` which FEAT-01 lacks
+- FEAT-01 includes `'Specialty Equipment'` which Foundation lacks
+
+---
+
+### [B6] User Extended Fields Conflict
+
+**Specs affected**: Foundation, FEAT-05
+
+**The conflict**:
+- FEAT-05 states: "New fields added to foundation User entity: `neighborhood`, `location_accuracy`, `search_radius_miles`"
+- Foundation spec already defines: `User.neighborhood | string(100) | not null` and `User.location_accuracy | enum | not null`
+- Foundation spec does NOT define `search_radius_miles`
+
+**Example**:
+```
+Foundation User table already includes:
+| neighborhood | string(100) | not null | Geocoded or user-provided |
+| location_accuracy | enum | not null | Values: 'precise', 'postal_code' |
+
+FEAT-05 claims to add:
+| neighborhood | string(50) | not null | (different length constraint!)
+| location_accuracy | string(20) | not null | (different type!)
+| search_radius_miles | integer | not null, default 5 |
+```
+
+**Fix**: 
+1. Remove `neighborhood` and `location_accuracy` from FEAT-05's "extended fields" section since they're already in Foundation
+2. Add `search_radius_miles` field to Foundation's User entity definition
+3. Reconcile string length: Foundation uses `string(100)`, FEAT-05 uses `string(50)` — use Foundation's 100
+4. Reconcile type: Foundation uses `enum`, FEAT-05 uses `string(20)` — use Foundation's enum
+
+---
+
+### [B7] ReturnConfirmation Field Name Mismatch
+
+**Specs affected**: Foundation, FEAT-04
+
+**The conflict**:
+- Foundation spec defines: `ReturnConfirmation.has_damage | boolean | not null, default false`
+- FEAT-04 spec defines: `ReturnConfirmation.condition | string(50) | not null, enum | Values: Good, HasIssues`
+
+**Example**:
+```
+Foundation ReturnConfirmation:
+| has_damage | boolean | not null, default false | Owner reported issue |
+| damage_description | string(1000) | nullable | Required if has_damage=true |
+
+FEAT-04 ReturnConfirmation:
+| condition | string(50) | not null, enum | Values: Good, HasIssues |
+| issueDescription | string(1000) | nullable | Required if condition=HasIssues |
+```
+
+**Fix**: Choose one approach consistently:
+1. **Recommended**: Use FEAT-04's enum approach (`condition` with values `Good`, `HasIssues`). Update Foundation to match
+2. **Alternative**: Use Foundation's boolean approach. Update FEAT-04 to use `has_damage` boolean
+
+Also reconcile field naming convention:
+- Foundation uses snake_case: `has_damage`, `damage_description`
+- FEAT-04 uses camelCase: `condition`, `issueDescription`
+
+Foundation spec should be authoritative for naming conventions.
+
+---
+
+### [B8] Missing Transaction/Borrow Tracking Fields in Foundation BorrowRequest
+
+**Specs affected**: Foundation, FEAT-04
+
+**The conflict**:
+- FEAT-04's Borrow entity includes: `returnMarkedDate`, `returnConfirmedDate`, `returnCondition`, `ownerTimezone`
+- Foundation's BorrowRequest includes: `picked_up_at`, `returned_at`, `confirmed_at` but NOT `returnMarkedDate`, `returnCondition`, or `ownerTimezone`
+- FEAT-04 spec states the Borrow entity is created from an approved BorrowRequest, but the fields don't align
+
+**Example**:
+```
+Foundation BorrowRequest:
+| picked_up_at | timestamp | nullable | Set when status='PickedUp' |
+| returned_at | timestamp | nullable | Set when status='Returned' |
+| confirmed_at | timestamp | nullable | Set when status='Completed' |
+| owner_timezone | string(50) | not null | Copied from owner.user_timezone on creation |
+
+FEAT-04 Borrow:
+| returnMarkedDate | datetime | nullable | UTC, set when borrower marks as returned |
+| returnConfirmedDate | datetime | nullable | UTC, set when owner confirms or auto-confirms |
+| returnCondition | string(50) | nullable, enum | Values: GoodCondition, HasIssues, NotYetConfirmed |
+| ownerTimezone | string(100) | not null | IANA timezone ID |
+```
+
+**Fix**: If keeping FEAT-04's separate Borrow entity, ensure Foundation's BorrowRequest includes all tracking fields OR clarify that FEAT-04's Borrow is the source of truth for return tracking. If merging entities (per B3), add these fields to Foundation's BorrowRequest:
+- `returnMarkedDate` (maps to `returned_at`)
+- `returnCondition` enum
+- Reconcile `ownerTimezone` type: `string(50)` vs `string(100)`
+
+---
+
+### [B9] Rating Window Field Naming Mismatch
+
+**Specs affected**: Foundation, FEAT-03
+
+**The conflict**:
+- Foundation spec defines: `BorrowRequest.rating_window_closes_at | timestamp | nullable | confirmed_at + 7 days`
+- FEAT-03 spec states: "Rating windows close exactly 168 hours (7 days) after `confirmed_at` timestamp" but doesn't reference `rating_window_closes_at` field anywhere in its API responses or business rules
+- FEAT-03's POST `/api/v1/transactions/{transaction_id}/ratings` response includes: `rating_window_closes_at` ✓ (matches)
+
+**Example**:
+```
+Foundation BorrowRequest: rating_window_closes_at | timestamp | nullable | confirmed_at + 7 days
+
+FEAT-03 rating response: "rating_window_closes_at": "ISO 8601 datetime" ✓
+FEAT-03 business rules: "Rating windows close exactly 168 hours (7 days) after `confirmed_at` timestamp" (doesn't mention the field name)
+```
+
+**Fix**: FEAT-03 should explicitly reference the `BorrowRequest.rating_window_closes_at` field in business rules and clarify that this field is set when `confirmed_at` is set. The calculation logic should be in Foundation, not duplicated in FEAT-03.
+
+---
+
+### [B10] Missing RequestMessage.emailDigestSentAt Field
+
+**Specs affected**: Foundation, FEAT-02
+
+**The conflict**:
+- FEAT-02 spec defines: `RequestMessage.emailDigestSentAt | timestamp | nullable | When 2-hour digest email was sent (if applicable)`
+- FEAT-02 spec indexes: `(borrowRequestId, sentAt)` WHERE `emailDigestSentAt IS NULL AND readAt IS NULL` - for pending digest job
+- Foundation spec's `RequestMessage` entity does NOT include `emailDigestSentAt` field
+
+**Example**:
+```
+Foundation RequestMessage:
+| id | UUID | PK, not null |
+| borrow_request_id | UUID | FK to BorrowRequest, not null |
+| sender_user_id | UUID | FK to User, not null |
+| recipient_user_id | UUID | FK to User, not null |
+| message_text | string(1000) | not null | Plain text |
+| read_at | timestamp | nullable | Set when recipient views message |
+| created_at | timestamp | not null | UTC |
+[NO emailDigestSentAt field]
+
+FEAT-02 RequestMessage:
+| emailDigestSentAt | timestamp | nullable | When 2-hour digest email was sent (if applicable) |
+```
+
+**Fix**: Add `emailDigestSentAt` field to Foundation's `RequestMessage` entity definition.
+
+---
+
+### [B11] ExtensionRequest Field Name Mismatches
+
+**Specs affected**: Foundation, FEAT-04
+
+**The conflict**:
+- Foundation spec defines: `ExtensionRequest.requested_new_due_date | date`, `ExtensionRequest.expires_at | timestamp`, `ExtensionRequest.responded_at | timestamp`
+- FEAT-04 spec defines: `ExtensionRequest.requestedDate | datetime`, `ExtensionRequest.expiresAt | datetime`, `ExtensionRequest.responseDate | datetime`, `ExtensionRequest.requestedNewDueDate | datetime`
+
+**Example**:
+```
+Foundation ExtensionRequest:
+| requested_new_due_date | date | not null | Must be > current_due_date |
+| expires_at | timestamp | not null | created_at + 72 hours |
+| responded_at | timestamp | nullable | Set on Approved/Denied |
+
+FEAT-04 ExtensionRequest:
+| requestedDate | datetime | not null | UTC, when request submitted |
+| requestedNewDueDate | datetime | not null | UTC, must be > currentDueDate |
+| expiresAt | datetime | not null | UTC, calculated as requestedDate + 72 hours |
+| responseDate | datetime | nullable | UTC, when owner responded or timeout occurred |
+```
+
+**Fix**: Foundation uses snake_case, FEAT-04 uses camelCase. Choose one convention:
+1. **Recommended**: Use Foundation's snake_case naming consistently across all specs
+2. Update FEAT-04 to match: `requestedDate` → `requested_date`, `requestedNewDueDate` → `requested_new_due_date`, `expiresAt` → `expires_at`, `responseDate` → `responded_at`
+
+Also note Foundation missing `requestedDate` field that FEAT-04 includes (when the request was submitted).
+
+---
+
+### [B12] Tool Photo Primary Key Mismatch
+
+**Specs affected**: FEAT-01, Foundation
+
+**The conflict**:
+- Foundation spec defines: `Tool.primary_photo_id | UUID | FK to ToolPhoto, nullable | Set after first photo upload`
+- FEAT-01 spec defines: `Tool.primary_photo_id | UUID | FK → ToolPhoto, nullable | First photo in display order` BUT ALSO states: "the first photo (display_order = 1) is the primary thumbnail" (Business Rule #2)
+- FEAT-01's DELETE photo endpoint: "If deleted photo was primary (display_order = 1), next photo promoted to primary (Tool.primary_photo_id updated)"
+
+**Example**:
+```
+Foundation: primary_photo_id | UUID | FK to ToolPhoto, nullable | Set after first photo upload
+
+FEAT-01: primary_photo_id | UUID | FK → ToolPhoto, nullable | First photo in display order
+FEAT-01 Business Rule #2: "the first photo (display_order = 1) is the primary thumbnail"
+```
+
+**Conflict**: Is `primary_photo_id` explicitly set via FK, or is it derived from `display_order = 1`? If derived, the FK field is redundant (and could become inconsistent). If explicit FK, then deleting the primary photo requires updating this field.
+
+**Fix**: Clarify in Foundation spec:
+1. **Recommended**: `primary_photo_id` is explicitly set and maintained via FK. When display_order changes, `primary_photo_id` must be updated to the photo with `display_order = 1`. Add this logic to Foundation business rules.
+2. **Alternative**: Remove `primary_photo_id` FK field entirely and derive primary photo as "photo with display_order = 1" via query. Update all specs to remove FK references.
+
+---
+
+## WARNING Issues
+
+### [W1] ToolCategory vs Tool.category Data Type Mismatch
+
+**Specs affected**: Foundation, FEAT-01, FEAT-03, FEAT-04, FEAT-05
+
+**The conflict**:
+- Foundation uses `Tool.category` as enum (stored as string in DB)
+- FEAT-01 uses `Tool.category_id` as UUID FK to ToolCategory table
+- FEAT-03, FEAT-04, FEAT-05 reference "tool_category" in snapshots and activity events but don't specify if it's the enum value or the category name string
+
+**Example**:
+```
+Foundation BorrowRequest: tool_category_snapshot | enum | not null | Snapshot
+FEAT-05 ActivityEvent: tool_category | enum | not null | Snapshot
+```
+
+**Fix**: Once B5 is resolved (choosing enum vs table approach), ensure all snapshot fields use consistent typing. If using table approach, snapshots should store `string` category name, not `enum`.
+
+---
+
+### [W2] Notification Type Enum Values Not Exhaustive
+
+**Specs affected**: Foundation, FEAT-02, FEAT-03, FEAT-04
+
+**The conflict**:
+- Foundation lists notification_type values: `'Reminder_DueSoon', 'Reminder_DueToday', 'Reminder_Overdue', 'Return_Marked', 'Return_Confirmed', 'Extension_Requested', 'Extension_Approved', 'Extension_Denied', 'Extension_TimedOut', 'Damage_Reported', 'Rebuttal_Added', 'Rating_Reminder', 'Rating_Mutual', 'Request_Received', 'Request_Approved', 'Request_Declined'`
+- FEAT-02 references: `BorrowRequestReceived`, `BorrowRequestApproved`, `BorrowRequestDeclined`, `BorrowRequestCancelled`, `BorrowRequestWithdrawn` (different naming convention)
+- FEAT-04 references: `Return_Marked`, `Return_Confirmed`, `Damage_Reported`, `Rebuttal_Added` (matches Foundation ✓)
+
+**Example**:
+```
+Foundation: 'Request_Received', 'Request_Approved', 'Request_Declined'
+FEAT-02: 'BorrowRequestReceived', 'BorrowRequestApproved', 'BorrowRequestDeclined', 'BorrowRequestCancelled', 'BorrowRequestWithdrawn'
+```
+
+**Fix**: 
+1. Align naming convention: Use Foundation's underscore-separated style consistently
+2. Add missing types to Foundation enum: `Request_Cancelled`, `Request_Withdrawn`
+3. Update FEAT-02 to use Foundation's naming: `BorrowRequestReceived` → `Request_Received`, etc.
+
+---
+
+### [W3] Incomplete Email Type Coverage
+
+**Specs affected**: Foundation, FEAT-02, FEAT-03, FEAT-04
+
+**The conflict**:
+- Foundation defines `EmailDeliveryLog.email_type` as `string(100)` with example values `'WelcomeEmail', 'DueReminder'` but no exhaustive enum
+- FEAT-02 sends emails for: request received, request approved/declined, request cancelled/withdrawn, message digest (not mentioned in Foundation)
+- FEAT-04 sends emails for: return marked, return confirmed, extension requested/approved/denied, damage reported, rebuttal added (not mentioned in Foundation)
+
+**Fix**: Add exhaustive `email_type` enum to Foundation spec including all email types used across all features:
+- `WelcomeEmail`, `EmailVerification`, `PasswordReset`
+- `RequestReceived`, `RequestApproved`, `RequestDeclined`, `RequestCancelled`, `RequestWithdrawn`
+- `MessageDigest`
+- `ReturnMarked`, `ReturnConfirmed`, `DamageReported`, `RebuttalAdded`
+- `ExtensionRequested`, `ExtensionApproved`, `ExtensionDenied`, `ExtensionTimedOut`
+- `ReminderDueSoon`, `ReminderDueToday`, `ReminderOverdue`
+
+---
+
+## CLEAN Sections
+
+- User entity core fields (email, password_hash, first_name, last_name, created_at, updated_at) are consistent across all specs
+- UUID primary key usage is consistent across Foundation, FEAT-01, FEAT-02, FEAT-03, FEAT-04 (only FEAT-05 deviates)
+- Authentication approach (JWT in HttpOnly cookies, 7-day expiration) is consistent where mentioned
+- Timestamp fields consistently use UTC and `timestamp` type (except FEAT-04 using `datetime` in some places)
+- Foreign key cascade behaviors are explicitly defined in each spec
+- Rating star range (1-5) is consistent between Foundation and FEAT-03
+- Extension request timeout (72 hours) is consistent between Foundation and FEAT-04
+- Return confirmation auto-confirm period (7 days) is consistent between Foundation, FEAT-03, and FEAT-04
+- Geocoding service contract is only defined in Foundation (no conflicts)
+- Blob storage URL patterns are consistent across all specs (nullable string 500 chars)
+
+---
+
+## Regeneration Order
+
+If specs need to be regenerated, do it in this order to avoid cascading inconsistencies:
+
+1. **foundation-spec** (fix entity definitions, status enums, primary key types, field naming conventions)
+2. **FEAT-01-tool-listings-spec** (depends on User, Tool, ToolPhoto, ToolCategory resolution)
+3. **FEAT-02-borrowing-requests-spec** (depends on User, Tool, BorrowRequest, RequestMessage fields)
+4. **FEAT-04-borrow-tracking-&-returns-spec** (depends on BorrowRequest/Borrow entity resolution, ExtensionRequest, ReturnConfirmation fields)
+5. **FEAT-03-user-profiles-&-trust-system-spec** (depends on BorrowRequest, Rating, Transaction/Borrow resolution)
+6. **FEAT-05-community-&-location-based-discovery-spec** (depends on User extended fields, Tool, ActivityEvent, primary key types)
