@@ -83,6 +83,7 @@ pipeline:
     output: "docs/05-specs/{feature_id}-{feature_slug}-spec.md"
     input:
       type: feature
+      feature_doc: "{{latest_feature_doc}}"
       foundation_spec: docs/05-specs/foundation-spec.md
       appsec_doc: docs/04-foundation/appsec-review.md
       qa_doc: docs/04-foundation/qa-review.md

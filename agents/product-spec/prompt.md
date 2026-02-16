@@ -151,9 +151,10 @@ Extract ONE feature from the PRD and expand it into a complete, standalone featu
 
 1. **Extract from PRD**: Pull the relevant feature section from the PRD
 2. **Add Detail**: Expand on what the PRD says - add specifics, examples, edge cases
-3. **Make it Standalone**: Tech Lead should understand this feature without reading the full PRD
-4. **Be Clear**: Use concrete examples, specific behaviors, testable criteria
-5. **Acknowledge Unknowns**: List open questions if you're uncertain about something
+3. **Stay in scope**: Do not add features or behaviours not described in the PRD section for this feature. If something seems like an obvious extension, note it in "Out of Scope" as a possible v2 item — do not include it as a requirement
+4. **Make it Standalone**: Tech Lead should understand this feature without reading the full PRD
+5. **Be Clear**: Use concrete examples, specific behaviors, testable criteria
+6. **Acknowledge Unknowns**: List open questions if you're uncertain about something
 
 ### Quality Standards
 

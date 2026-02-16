@@ -34,10 +34,23 @@ def get_latest_feature_docs():
     return docs
 
 
+def get_latest_feature_doc(feature_id, feature_slug):
+    """Return the most refined version of a single feature doc, falling back to the initial breakdown."""
+    stem = f'{feature_id}-{feature_slug}'
+    refined_dir = Path(f'docs/03-refinement/{stem}')
+    if refined_dir.exists():
+        updates = sorted(refined_dir.glob('updated-v1.*.md'))
+        if updates:
+            return str(updates[-1])
+    return f'docs/02-features/{stem}.md'
+
+
 def resolve_value(value, **kwargs):
     """Resolve a single value — handles special tokens and {pattern} substitution."""
     if value == '{{latest_feature_docs}}':
         return get_latest_feature_docs()
+    if value == '{{latest_feature_doc}}':
+        return get_latest_feature_doc(kwargs['feature_id'], kwargs['feature_slug'])
     if isinstance(value, str):
         return value.format(**kwargs)
     return value
