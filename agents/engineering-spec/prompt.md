@@ -208,6 +208,17 @@ This document does not contain:
 - Make product decisions — requirements are already approved
 - Add optional/nice-to-have items not in the approved requirements
 
+### Foundation Spec Is The Source of Truth
+
+If a foundation spec is provided, it defines the canonical names for everything. You must:
+
+- Use the **exact entity names** from the foundation spec. If it says `BorrowRequest`, never write `Transaction`, `Loan`, `LendingRecord`, or any other synonym.
+- Use the **exact field names** from the foundation spec. If it says `requested_start_date`, never write `startDate`, `start_date`, or `borrowFrom`.
+- Use the **exact status enum values** from the foundation spec. If `BorrowRequest.status` is `Pending | Approved | Declined | Returned | Completed`, never introduce `Active`, `PendingReturnConfirmation`, or any other value not in that enum.
+- Use the **exact primary key type** from the foundation spec. If foundation uses UUID, never use integer or any other type for foreign keys referencing those entities.
+
+When the feature requirements use a different name for a foundation entity (e.g. feature doc says "transaction" but foundation calls it "BorrowRequest"), use the foundation spec name and note the mapping once in the Overview section.
+
 ### Boundary Rules
 
 - **Tech-lead** verified these requirements are complete enough to spec. Trust that work.

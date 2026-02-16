@@ -19,6 +19,18 @@ def is_complete(task_id):
     return Path(f'docs/.state/completed/{task_id}.done').exists()
 
 
+def get_all_spec_files():
+    """Return all engineering spec files, excluding the review doc itself."""
+    specs_dir = Path('docs/05-specs')
+    if not specs_dir.exists():
+        return []
+    return sorted(
+        str(p) for p in specs_dir.glob('*.md')
+        if not p.name.startswith('spec-review')
+        and not p.name.startswith('SPEC-REVIEW')
+    )
+
+
 def get_latest_feature_docs():
     features_dir = Path('docs/02-features')
     refinement_dir = Path('docs/03-refinement')
@@ -64,6 +76,8 @@ def resolve_value(value, **kwargs):
         return get_latest_feature_doc(kwargs['feature_id'], kwargs['feature_slug'])
     if value == '{{latest_questions_file}}':
         return get_latest_questions_file(kwargs['feature_id'], kwargs['feature_slug'])
+    if value == '{{all_spec_files}}':
+        return get_all_spec_files()
     if isinstance(value, str):
         return value.format(**kwargs)
     return value

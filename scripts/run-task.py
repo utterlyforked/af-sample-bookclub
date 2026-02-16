@@ -49,6 +49,15 @@ def load_agent_prompt(agent, task_input):
         else:
             raise FileNotFoundError(f"Feature doc not found: {path}")
 
+    # Inject list of engineering spec files (spec-judge)
+    for i, doc_path in enumerate(task_input.get('spec_files', []), 1):
+        path = Path(doc_path)
+        if path.exists():
+            prompt += f"\n\n## Engineering Spec {i}: {path.stem}\n\n"
+            prompt += path.read_text()
+        else:
+            raise FileNotFoundError(f"Spec file not found: {path}")
+
     # Always inject tech stack context
     tech_stack = Path('context/tech-stack-standards.md')
     if tech_stack.exists():
