@@ -28,14 +28,19 @@ In GitHub Settings → Secrets and variables → Actions, add:
 
 ```
 ANTHROPIC_API_KEY=your-api-key-here
+ORCHESTRATOR_PAT=your-github-pat-here
 ```
 
 ### 3. Initialize Your Project
 
 ```bash
 # Initialize with your app idea
-./scripts/init-project.sh "Task management app with AI prioritization"
+cp docs/00-user-idea.md.tmpl docs/00-user-idea.md
+```
 
+Modify the the user-idea with a basic summary of what you want to build and commit it.
+
+```bash
 git add .
 git commit -m "feat: initialize project"
 git push
@@ -45,13 +50,13 @@ git push
 
 The orchestrator will automatically:
 - Run Product Manager agent → creates PRD
-- Run Tech Lead agent → asks questions per feature
-- Run Product Owner agent → answers questions
+- If you're happy with the summary of what should be built create a '.approved' file in the docs/01-prd directory and commit
+- The product owner agent will break it down to features and work with the  Tech Lead agent to refine it
 - Loop until features are refined
-- Run Foundation Architect → analyzes common elements
-- Run Engineering Spec agent → creates implementation specs
-- Create feature branches → Claude Code implements
-- Create PRs for your review
+- If you're happy with the summary of the feature breakdown and refinement create a '.approved' file in the docs/03-refinement directory and commit
+- The Foundation Architect → analyzes common elements and identifies a spec-0 for all common functionality
+- The Security Agent and QA agent will then asses the overall project
+- The Engineering Spec agent → creates implementation specs
 
 Check the Actions tab in GitHub to watch progress.
 
@@ -63,10 +68,11 @@ After the workflow completes:
 my-app/
 ├── docs/
 │   ├── .state/                  # Orchestration state
-│   ├── 01-prd/                  # Product requirements
-│   ├── 02-refinement/           # Q&A iterations
-│   ├── 03-foundation/           # Architecture analysis
-│   └── 04-specs/                # Engineering specs
+│   ├── 01-prd/                  # High level requirements
+│   ├── 02-features/             # Broken Down Features
+│   ├── 03-refinement/           # PO/TL iteration questions/answers to refine spec
+│   └── 04-foundation/           # Common capabailities/architecture and security and QA assesment with testing approach
+│   └── 05-specs/                # Impelentation specifications 
 │
 └── src/                         # Implemented code
     ├── API/
@@ -95,6 +101,8 @@ Optionally customize agent behaviors in `agents/*/prompt.md`:
 - Product Manager tone
 - Tech Lead question style
 - Engineering Spec detail level
+- QA 
+- APP Sec
 
 ## How It Works
 
@@ -109,21 +117,6 @@ See [INTRODUCTION.md](./INTRODUCTION.md) for the full story.
 5. **GitHub Actions** (`.github/workflows/`) automates it all
 
 Humans review at strategic decision points. Agents handle iteration and implementation.
-
-## Evolution
-
-Three months later, add a new feature:
-
-```bash
-./scripts/init-feature.sh "reading-calendar" \
-  --description "Calendar view of meetings and deadlines"
-
-git add docs/.state/
-git commit -m "feat: request reading calendar feature"
-git push
-```
-
-Agents analyze existing specs, refine the new feature, generate specs, and implement—with full context of your existing application.
 
 ## Requirements
 
